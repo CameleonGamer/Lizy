@@ -20,6 +20,8 @@ import { SecureStorage } from '@/core/security/secureStorage';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { pronoteClient } from '@/core/pronote/client';
 import { SUPPORTED_ENTS, ENTDefinition } from '@/core/pronote/constants';
+import { SchoolEstablishment } from '@/core/pronote/schools';
+import { SchoolFinderModal } from '@/components/auth/SchoolFinderModal';
 import { EntWebViewModal } from '@/components/auth/EntWebViewModal';
 import { PronoteBadCredentialsError, PronoteMaintenanceError, PronoteNetworkError } from '@/core/pronote/errors';
 import { 
@@ -32,21 +34,38 @@ import {
   ChevronDown,
   Check,
   X,
-  ExternalLink 
+  ExternalLink,
+  MapPin,
+  Building2 
 } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const { currentTheme } = useThemeStore();
   const { setSession, setLoading, isLoading } = useAuthStore();
 
-  const [url, setUrl] = useState('https://demo.index-education.net/pronote/');
+  const [selectedSchool, setSelectedSchool] = useState<SchoolEstablishment>({
+    id: '0750655E',
+    name: 'Lycée Condorcet',
+    city: 'Paris',
+    postalCode: '75009',
+    pronoteUrl: 'https://0750655e.index-education.net/pronote/',
+    type: 'Lycée',
+  });
+
+  const [url, setUrl] = useState('https://0750655e.index-education.net/pronote/');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [selectedEnt, setSelectedEnt] = useState<ENTDefinition>(SUPPORTED_ENTS[1]); // Default to ÉduConnect
   const [entModalVisible, setEntModalVisible] = useState(false);
+  const [schoolFinderVisible, setSchoolFinderVisible] = useState(false);
   const [webViewModalVisible, setWebViewModalVisible] = useState(false);
 
   const isDirectPronote = selectedEnt.id === 'none';
+
+  const handleSelectSchool = (school: SchoolEstablishment) => {
+    setSelectedSchool(school);
+    setUrl(school.pronoteUrl);
+  };
 
   const handleLoginDirect = async () => {
     if (!username.trim() || !password.trim()) {
@@ -71,7 +90,13 @@ export default function LoginScreen() {
       });
 
       const session = pronoteClient.getSession();
-      setSession(user, session ? session.token : 'token-ram-' + Date.now());
+      setSession(
+        {
+          ...user,
+          establishment: selectedSchool.name,
+        },
+        session ? session.token : 'token-ram-' + Date.now()
+      );
 
       router.replace('/(tabs)');
     } catch (err: any) {
@@ -102,7 +127,7 @@ export default function LoginScreen() {
       {
         id: 'demo-student',
         name: 'Alexandre Martin',
-        establishment: 'Lycée Condorcet',
+        establishment: selectedSchool.name,
         studentClass: 'Terminale Générale',
       },
       'demo-token-ram'
@@ -126,9 +151,35 @@ export default function LoginScreen() {
               Connexion Pronote
             </Text>
             <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>
-              Authentification 100% locale sécurisée.
+              Détection automatique des établissements & compte élève.
             </Text>
           </View>
+
+          {/* School Selector Card (Pronote geo-detector style) */}
+          <TouchableOpacity activeOpacity={0.85} onPress={() => setSchoolFinderVisible(true)}>
+            <GlassCard style={styles.schoolCard}>
+              <View style={styles.schoolCardRow}>
+                <View style={[styles.schoolIconCircle, { backgroundColor: currentTheme.colors.surfaceGlass }]}>
+                  <Building2 size={22} color={currentTheme.colors.primary} />
+                </View>
+                <View style={styles.schoolTextCol}>
+                  <Text style={[styles.schoolLabel, { color: currentTheme.colors.textMuted }]}>
+                    ÉTABLISSEMENT SÉLECTIONNÉ
+                  </Text>
+                  <Text numberOfLines={1} style={[styles.schoolNameText, { color: currentTheme.colors.text }]}>
+                    {selectedSchool.name}
+                  </Text>
+                  <Text style={[styles.schoolCityText, { color: currentTheme.colors.accent }]}>
+                    {selectedSchool.city} {selectedSchool.postalCode ? `(${selectedSchool.postalCode})` : ''}
+                  </Text>
+                </View>
+                <View style={[styles.changePill, { backgroundColor: 'rgba(99, 102, 241, 0.15)', borderColor: currentTheme.colors.borderGlass }]}>
+                  <MapPin size={12} color={currentTheme.colors.primary} />
+                  <Text style={[styles.changePillText, { color: currentTheme.colors.primary }]}>Changer (GPS)</Text>
+                </View>
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
 
           {/* Login Card */}
           <GlassCard style={styles.card}>
@@ -148,16 +199,16 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Pronote URL */}
+            {/* Pronote URL (Auto filled) */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: currentTheme.colors.textMuted }]}>
-                URL DU SERVEUR PRONOTE DE L'ÉTABLISSEMENT
+                URL PRONOTE (AUTO-DÉTECTÉE)
               </Text>
               <View style={[styles.inputBox, { borderColor: currentTheme.colors.borderGlass }]}>
                 <Globe size={18} color={currentTheme.colors.textMuted} />
                 <TextInput
                   style={[styles.input, { color: currentTheme.colors.text }]}
-                  placeholder="https://0000000x.index-education.net/pronote/"
+                  placeholder="https://..."
                   placeholderTextColor={currentTheme.colors.textMuted}
                   value={url}
                   onChangeText={setUrl}
@@ -171,7 +222,7 @@ export default function LoginScreen() {
             {!isDirectPronote ? (
               <View style={styles.entNoticeBox}>
                 <Text style={[styles.entNoticeText, { color: currentTheme.colors.textMuted }]}>
-                  Pour vous connecter via <Text style={{ color: currentTheme.colors.text, fontWeight: '700' }}>{selectedEnt.name}</Text>, une fenêtre sécurisée officielle s'ouvre pour saisir vos identifiants ministériels.
+                  Connexion officielle via <Text style={{ color: currentTheme.colors.text, fontWeight: '700' }}>{selectedEnt.name}</Text>. La page d'authentification de votre académie s'ouvre pour synchroniser votre compte.
                 </Text>
 
                 <TouchableOpacity
@@ -179,7 +230,7 @@ export default function LoginScreen() {
                   style={[styles.entLaunchButton, { backgroundColor: currentTheme.colors.primary }]}
                 >
                   <ExternalLink size={18} color="#FFFFFF" />
-                  <Text style={styles.loginButtonText}>Continuer vers {selectedEnt.name}</Text>
+                  <Text style={styles.loginButtonText}>Se Connecter via {selectedEnt.name}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -257,6 +308,13 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Nearby School Finder Modal (GPS + Search) */}
+      <SchoolFinderModal
+        visible={schoolFinderVisible}
+        onClose={() => setSchoolFinderVisible(false)}
+        onSelectSchool={handleSelectSchool}
+      />
+
       {/* ENT Selection Modal */}
       <Modal visible={entModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -329,38 +387,86 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     justifyContent: 'center',
+    gap: 14,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 6,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.5,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
   },
+  schoolCard: {
+    marginBottom: 0,
+    padding: 14,
+  },
+  schoolCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  schoolIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  schoolTextCol: {
+    flex: 1,
+  },
+  schoolLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  schoolNameText: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  schoolCityText: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  changePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  changePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   card: {
-    padding: 20,
-    gap: 14,
+    padding: 18,
+    gap: 12,
   },
   inputGroup: {
-    gap: 6,
+    gap: 5,
   },
   inputLabel: {
     fontSize: 10,
@@ -370,7 +476,7 @@ const styles = StyleSheet.create({
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
+    height: 46,
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 12,
@@ -378,23 +484,23 @@ const styles = StyleSheet.create({
   },
   entSelectText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   input: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
   },
   entNoticeBox: {
-    paddingTop: 8,
-    gap: 14,
+    paddingTop: 4,
+    gap: 12,
   },
   entNoticeText: {
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 18,
   },
   entLaunchButton: {
-    height: 50,
+    height: 48,
     borderRadius: 14,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -402,28 +508,28 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loginButton: {
-    height: 50,
+    height: 48,
     borderRadius: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
+    marginTop: 6,
   },
   loginButtonText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 14,
   },
   demoButton: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 10,
   },
   demoText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   privacyNote: {
