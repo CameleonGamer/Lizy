@@ -20,6 +20,7 @@ import { SecureStorage } from '@/core/security/secureStorage';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { pronoteClient } from '@/core/pronote/client';
 import { SUPPORTED_ENTS, ENTDefinition } from '@/core/pronote/constants';
+import { EntWebViewModal } from '@/components/auth/EntWebViewModal';
 import { PronoteBadCredentialsError, PronoteMaintenanceError, PronoteNetworkError } from '@/core/pronote/errors';
 import { 
   ShieldCheck, 
@@ -30,7 +31,8 @@ import {
   Sparkles,
   ChevronDown,
   Check,
-  X 
+  X,
+  ExternalLink 
 } from 'lucide-react-native';
 
 export default function LoginScreen() {
@@ -40,10 +42,13 @@ export default function LoginScreen() {
   const [url, setUrl] = useState('https://demo.index-education.net/pronote/');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedEnt, setSelectedEnt] = useState<ENTDefinition>(SUPPORTED_ENTS[0]);
+  const [selectedEnt, setSelectedEnt] = useState<ENTDefinition>(SUPPORTED_ENTS[1]); // Default to ÉduConnect
   const [entModalVisible, setEntModalVisible] = useState(false);
+  const [webViewModalVisible, setWebViewModalVisible] = useState(false);
 
-  const handleLogin = async () => {
+  const isDirectPronote = selectedEnt.id === 'none';
+
+  const handleLoginDirect = async () => {
     if (!username.trim() || !password.trim()) {
       Alert.alert('Champs requis', 'Veuillez saisir votre identifiant et mot de passe Pronote.');
       return;
@@ -51,7 +56,6 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      // 1. Hardware encrypted storage (AES-256)
       await SecureStorage.saveCredentials({
         url: url.trim(),
         username: username.trim(),
@@ -59,7 +63,6 @@ export default function LoginScreen() {
         ent: selectedEnt.id,
       });
 
-      // 2. Local client authentication
       const user = await pronoteClient.login({
         url: url.trim(),
         username: username.trim(),
@@ -67,7 +70,6 @@ export default function LoginScreen() {
         ent: selectedEnt.id,
       });
 
-      // 3. Set purely in RAM session
       const session = pronoteClient.getSession();
       setSession(user, session ? session.token : 'token-ram-' + Date.now());
 
@@ -85,6 +87,14 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenEntBrowser = () => {
+    if (!url.trim()) {
+      Alert.alert('URL requise', 'Veuillez indiquer l’adresse Pronote de votre établissement.');
+      return;
+    }
+    setWebViewModalVisible(true);
   };
 
   const handleDemoAccess = () => {
@@ -116,7 +126,7 @@ export default function LoginScreen() {
               Connexion Pronote
             </Text>
             <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>
-              Authentification 100% locale sans serveur tiers.
+              Authentification 100% locale sécurisée.
             </Text>
           </View>
 
@@ -141,7 +151,7 @@ export default function LoginScreen() {
             {/* Pronote URL */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: currentTheme.colors.textMuted }]}>
-                URL DU SERVEUR PRONOTE
+                URL DU SERVEUR PRONOTE DE L'ÉTABLISSEMENT
               </Text>
               <View style={[styles.inputBox, { borderColor: currentTheme.colors.borderGlass }]}>
                 <Globe size={18} color={currentTheme.colors.textMuted} />
@@ -157,58 +167,76 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* Username */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: currentTheme.colors.textMuted }]}>
-                IDENTIFIANT
-              </Text>
-              <View style={[styles.inputBox, { borderColor: currentTheme.colors.borderGlass }]}>
-                <User size={18} color={currentTheme.colors.textMuted} />
-                <TextInput
-                  style={[styles.input, { color: currentTheme.colors.text }]}
-                  placeholder="prenom.nom"
-                  placeholderTextColor={currentTheme.colors.textMuted}
-                  value={username}
-                  onChangeText={setUsername}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </View>
+            {/* ENT SSO Mode vs Direct Pronote Mode */}
+            {!isDirectPronote ? (
+              <View style={styles.entNoticeBox}>
+                <Text style={[styles.entNoticeText, { color: currentTheme.colors.textMuted }]}>
+                  Pour vous connecter via <Text style={{ color: currentTheme.colors.text, fontWeight: '700' }}>{selectedEnt.name}</Text>, une fenêtre sécurisée officielle s'ouvre pour saisir vos identifiants ministériels.
+                </Text>
 
-            {/* Password */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: currentTheme.colors.textMuted }]}>
-                MOT DE PASSE
-              </Text>
-              <View style={[styles.inputBox, { borderColor: currentTheme.colors.borderGlass }]}>
-                <Lock size={18} color={currentTheme.colors.textMuted} />
-                <TextInput
-                  style={[styles.input, { color: currentTheme.colors.text }]}
-                  placeholder="••••••••••••"
-                  placeholderTextColor={currentTheme.colors.textMuted}
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                />
+                <TouchableOpacity
+                  onPress={handleOpenEntBrowser}
+                  style={[styles.entLaunchButton, { backgroundColor: currentTheme.colors.primary }]}
+                >
+                  <ExternalLink size={18} color="#FFFFFF" />
+                  <Text style={styles.loginButtonText}>Continuer vers {selectedEnt.name}</Text>
+                </TouchableOpacity>
               </View>
-            </View>
+            ) : (
+              <>
+                {/* Username */}
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: currentTheme.colors.textMuted }]}>
+                    IDENTIFIANT PRONOTE DIRECT
+                  </Text>
+                  <View style={[styles.inputBox, { borderColor: currentTheme.colors.borderGlass }]}>
+                    <User size={18} color={currentTheme.colors.textMuted} />
+                    <TextInput
+                      style={[styles.input, { color: currentTheme.colors.text }]}
+                      placeholder="prenom.nom"
+                      placeholderTextColor={currentTheme.colors.textMuted}
+                      value={username}
+                      onChangeText={setUsername}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </View>
 
-            {/* Submit */}
-            <TouchableOpacity
-              onPress={handleLogin}
-              disabled={isLoading}
-              style={[styles.loginButton, { backgroundColor: currentTheme.colors.primary }]}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Text style={styles.loginButtonText}>Se Connecter à Pronote</Text>
-                  <ArrowRight size={18} color="#FFFFFF" />
-                </>
-              )}
-            </TouchableOpacity>
+                {/* Password */}
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: currentTheme.colors.textMuted }]}>
+                    MOT DE PASSE
+                  </Text>
+                  <View style={[styles.inputBox, { borderColor: currentTheme.colors.borderGlass }]}>
+                    <Lock size={18} color={currentTheme.colors.textMuted} />
+                    <TextInput
+                      style={[styles.input, { color: currentTheme.colors.text }]}
+                      placeholder="••••••••••••"
+                      placeholderTextColor={currentTheme.colors.textMuted}
+                      secureTextEntry
+                      value={password}
+                      onChangeText={setPassword}
+                    />
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleLoginDirect}
+                  disabled={isLoading}
+                  style={[styles.loginButton, { backgroundColor: currentTheme.colors.primary }]}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Text style={styles.loginButtonText}>Se Connecter à Pronote</Text>
+                      <ArrowRight size={18} color="#FFFFFF" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
           </GlassCard>
 
           {/* Demo Button to inspect app immediately */}
@@ -276,6 +304,18 @@ export default function LoginScreen() {
           </GlassCard>
         </View>
       </Modal>
+
+      {/* Real In-App WebView for Official ÉduConnect / ENT Login */}
+      <EntWebViewModal
+        visible={webViewModalVisible}
+        initialUrl={url.trim()}
+        entName={selectedEnt.name}
+        onClose={() => setWebViewModalVisible(false)}
+        onSuccess={() => {
+          setWebViewModalVisible(false);
+          router.replace('/(tabs)');
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -344,6 +384,22 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 14,
+  },
+  entNoticeBox: {
+    paddingTop: 8,
+    gap: 14,
+  },
+  entNoticeText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  entLaunchButton: {
+    height: 50,
+    borderRadius: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
   },
   loginButton: {
     height: 50,
