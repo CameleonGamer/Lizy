@@ -8,6 +8,14 @@ interface DataState {
   messages: PronoteMessage[];
   averages: SubjectAverage[];
   generalAverage: number;
+  syncRealData: (payload: {
+    grades?: Grade[];
+    homework?: Homework[];
+    timetable?: TimetableLesson[];
+    messages?: PronoteMessage[];
+    averages?: SubjectAverage[];
+    generalAverage?: number;
+  }) => void;
   toggleHomework: (id: string) => void;
   toggleSubtask: (homeworkId: string, subtaskId: string) => void;
   addPersonalHomework: (item: Omit<Homework, 'id' | 'isPersonal' | 'completed' | 'subtasks'>) => void;
@@ -169,6 +177,19 @@ export const useDataStore = create<DataState>((set, get) => ({
       read: false,
     },
   ],
+
+  syncRealData: (payload) => {
+    set((state) => ({
+      ...state,
+      ...payload,
+      grades: payload.grades && payload.grades.length > 0 ? payload.grades : state.grades,
+      homework: payload.homework && payload.homework.length > 0 ? payload.homework : state.homework,
+      timetable: payload.timetable && payload.timetable.length > 0 ? payload.timetable : state.timetable,
+      messages: payload.messages && payload.messages.length > 0 ? payload.messages : state.messages,
+      averages: payload.averages && payload.averages.length > 0 ? payload.averages : state.averages,
+      generalAverage: payload.generalAverage ?? state.generalAverage,
+    }));
+  },
 
   toggleHomework: (id: string) => {
     set((state) => ({

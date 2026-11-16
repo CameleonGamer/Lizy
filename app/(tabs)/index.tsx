@@ -12,6 +12,7 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { useWidgetStore } from '@/stores/useWidgetStore';
 import { useGamingStore } from '@/stores/useGamingStore';
 import { useDataStore } from '@/stores/useDataStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { FocusTimerModal } from '@/components/focus/FocusTimerModal';
 import { WidgetEditorModal } from '@/components/widgets/WidgetEditorModal';
@@ -41,6 +42,7 @@ export default function DashboardScreen() {
   const { activeLayout, setLayoutPreset } = useWidgetStore();
   const { xp, level, streakDays } = useGamingStore();
   const { generalAverage, homework, timetable, toggleHomework } = useDataStore();
+  const { user } = useAuthStore();
 
   const [focusModalVisible, setFocusModalVisible] = useState(false);
   const [editorModalVisible, setEditorModalVisible] = useState(false);
@@ -56,13 +58,18 @@ export default function DashboardScreen() {
       >
         {/* Top Header */}
         <View style={styles.header}>
-          <View>
+          <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={[styles.greeting, { color: currentTheme.colors.textMuted }]}>
-              TABLEAU DE BORD
+              BONJOUR, {user?.name ? user.name.toUpperCase() : 'ÉLÈVE'}
             </Text>
-            <Text style={[styles.appName, { color: currentTheme.colors.text }]}>
-              Lizy Workspace
+            <Text numberOfLines={1} style={[styles.appName, { color: currentTheme.colors.text }]}>
+              {user?.establishment || 'Lizy Workspace'}
             </Text>
+            {user?.studentClass && (
+              <Text style={[styles.classSubtitle, { color: currentTheme.colors.accent }]}>
+                {user.studentClass}
+              </Text>
+            )}
           </View>
 
           {/* Action Pills */}
@@ -292,6 +299,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 2,
     letterSpacing: -0.5,
+  },
+  classSubtitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
   },
   headerPills: {
     flexDirection: 'row',
