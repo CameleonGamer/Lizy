@@ -38,63 +38,77 @@ export default function GradesScreen() {
                 MOYENNE GÉNÉRALE
               </Text>
               <Text style={[styles.heroGrade, { color: currentTheme.colors.text }]}>
-                {generalAverage.toFixed(2)}
+                {generalAverage > 0 ? generalAverage.toFixed(2) : '--'}
                 <Text style={styles.outOf}> / 20</Text>
               </Text>
             </View>
 
             <View style={[styles.predictionPill, { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
               <TrendingUp size={14} color="#10B981" />
-              <Text style={styles.predictionText}>+0.4 pt ce mois</Text>
+              <Text style={styles.predictionText}>
+                {generalAverage > 0 ? "Synchronisé Pronote" : "En attente"}
+              </Text>
             </View>
           </View>
 
           <View style={styles.predictionBox}>
             <Zap size={16} color={currentTheme.colors.accent} />
             <Text style={[styles.predictionExpl, { color: currentTheme.colors.textMuted }]}>
-              Prédiction fin de trimestre : <Text style={{ color: currentTheme.colors.text, fontWeight: '700' }}>~15.8 / 20</Text> basée sur tes 3 dernières progressions.
+              {generalAverage > 0 
+                ? `Moyenne générale officielle calculée sur vos évaluations récentes.`
+                : `Connectez-vous à Pronote pour afficher vos vraies notes et moyennes.`}
             </Text>
           </View>
         </GlassCard>
 
         {/* Points Forts & Faibles (Widget Performance) */}
-        <View style={styles.performanceRow}>
-          {/* Strong */}
-          <GlassCard style={styles.halfCard}>
-            <View style={styles.cardHeaderSmall}>
-              <ArrowUpRight size={16} color="#10B981" />
-              <Text style={[styles.perfTitle, { color: '#10B981' }]}>Points Forts</Text>
-            </View>
-            {strongSubjects.map((s) => (
-              <View key={s.subject} style={styles.perfItem}>
-                <Text style={[styles.perfSubject, { color: currentTheme.colors.text }]}>
-                  {s.subject}
-                </Text>
-                <Text style={[styles.perfGrade, { color: '#10B981' }]}>
-                  {s.average.toFixed(1)}
-                </Text>
+        {averages.length > 0 && (
+          <View style={styles.performanceRow}>
+            {/* Strong */}
+            <GlassCard style={styles.halfCard}>
+              <View style={styles.cardHeaderSmall}>
+                <ArrowUpRight size={16} color="#10B981" />
+                <Text style={[styles.perfTitle, { color: '#10B981' }]}>Points Forts</Text>
               </View>
-            ))}
-          </GlassCard>
+              {strongSubjects.length > 0 ? (
+                strongSubjects.map((s) => (
+                  <View key={s.subject} style={styles.perfItem}>
+                    <Text numberOfLines={1} style={[styles.perfSubject, { color: currentTheme.colors.text }]}>
+                      {s.subject}
+                    </Text>
+                    <Text style={[styles.perfGrade, { color: '#10B981' }]}>
+                      {s.average.toFixed(1)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={[styles.perfSubject, { color: currentTheme.colors.textMuted }]}>-</Text>
+              )}
+            </GlassCard>
 
-          {/* Weak / To Improve */}
-          <GlassCard style={styles.halfCard}>
-            <View style={styles.cardHeaderSmall}>
-              <ArrowDownRight size={16} color="#F59E0B" />
-              <Text style={[styles.perfTitle, { color: '#F59E0B' }]}>À renforcer</Text>
-            </View>
-            {weakSubjects.map((s) => (
-              <View key={s.subject} style={styles.perfItem}>
-                <Text style={[styles.perfSubject, { color: currentTheme.colors.text }]}>
-                  {s.subject}
-                </Text>
-                <Text style={[styles.perfGrade, { color: '#F59E0B' }]}>
-                  {s.average.toFixed(1)}
-                </Text>
+            {/* Weak / To Improve */}
+            <GlassCard style={styles.halfCard}>
+              <View style={styles.cardHeaderSmall}>
+                <ArrowDownRight size={16} color="#F59E0B" />
+                <Text style={[styles.perfTitle, { color: '#F59E0B' }]}>À renforcer</Text>
               </View>
-            ))}
-          </GlassCard>
-        </View>
+              {weakSubjects.length > 0 ? (
+                weakSubjects.map((s) => (
+                  <View key={s.subject} style={styles.perfItem}>
+                    <Text numberOfLines={1} style={[styles.perfSubject, { color: currentTheme.colors.text }]}>
+                      {s.subject}
+                    </Text>
+                    <Text style={[styles.perfGrade, { color: '#F59E0B' }]}>
+                      {s.average.toFixed(1)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={[styles.perfSubject, { color: currentTheme.colors.textMuted }]}>-</Text>
+              )}
+            </GlassCard>
+          </View>
+        )}
 
         {/* Subject Breakdown with Visual Bars */}
         <GlassCard style={styles.sectionCard}>

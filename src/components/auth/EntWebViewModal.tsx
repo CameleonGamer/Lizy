@@ -7,8 +7,7 @@ import {
   TouchableOpacity, 
   ActivityIndicator, 
   SafeAreaView, 
-  Platform,
-  Alert 
+  Platform 
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +15,7 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { SecureStorage } from '@/core/security/secureStorage';
+import { PronoteParser } from '@/core/pronote/parser';
 import { X, ShieldCheck, RefreshCw, CheckCircle2 } from 'lucide-react-native';
 
 interface EntWebViewModalProps {
@@ -26,18 +26,49 @@ interface EntWebViewModalProps {
   onSuccess: () => void;
 }
 
-const INJECTED_DATA_HARVESTER = `
+/**
+ * Script injected inside the WebView to intercept raw Pronote RPC responses
+ */
+const INJECTED_RPC_SNIFFER = `
   (function() {
-    function harvestPronoteData() {
+    if (window.__LIZY_SNIFFER_ATTACHED__) return;
+    window.__LIZY_SNIFFER_ATTACHED__ = true;
+
+    // 1. Monkey-patch XMLHttpRequest to capture all Pronote JSON-RPC calls
+    var origOpen = XMLHttpRequest.prototype.open;
+    var origSend = XMLHttpRequest.prototype.send;
+
+    XMLHttpRequest.prototype.open = function(method, url) {
+      this._targetUrl = url;
+      return origOpen.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.send = function() {
+      this.addEventListener('load', function() {
+        try {
+          var text = this.responseText;
+          if (text && (text.includes('donnees') || text.includes('listeDevoirs') || text.includes('listeServices') || text.includes('listeNotes') || text.includes('moyenneGenerale'))) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'PRONOTE_RPC_RESPONSE',
+              url: this._targetUrl,
+              data: JSON.parse(text)
+            }));
+          }
+        } catch(e) {}
+      });
+      return origSend.apply(this, arguments);
+    };
+
+    // 2. Continuous DOM observer for student name and class
+    function scanDomIdentity() {
       try {
         var studentName = '';
         var studentClass = '';
         var schoolName = '';
 
-        // Check DOM selectors in Pronote Web
-        var userSelectors = ['.ibe_utilisateur_nom', '.nom-etudiant', '[id*="header_user"]', '.user-name', '.identite'];
-        for (var i = 0; i < userSelectors.length; i++) {
-          var el = document.querySelector(userSelectors[i]);
+        var nameSelectors = ['.ibe_utilisateur_nom', '.nom-etudiant', '[id*="header_user"]', '.user-name', '.identite'];
+        for (var i = 0; i < nameSelectors.length; i++) {
+          var el = document.querySelector(nameSelectors[i]);
           if (el && el.innerText && el.innerText.trim()) {
             studentName = el.innerText.trim();
             break;
@@ -46,68 +77,39 @@ const INJECTED_DATA_HARVESTER = `
 
         var classSelectors = ['.ibe_classe', '.classe-etudiant', '[id*="header_classe"]', '.user-class'];
         for (var j = 0; j < classSelectors.length; j++) {
-          var elClass = document.querySelector(classSelectors[j]);
-          if (elClass && elClass.innerText && elClass.innerText.trim()) {
-            studentClass = elClass.innerText.trim();
+          var elC = document.querySelector(classSelectors[j]);
+          if (elC && elC.innerText && elC.innerText.trim()) {
+            studentClass = elC.innerText.trim();
             break;
           }
         }
 
-        // Check window globals in Pronote
-        if (window.GExportation) {
-          if (window.GExportation.donneesSecurite && window.GExportation.donneesSecurite.nomUtilisateur) {
+        if (window.GExportation && window.GExportation.donneesSecurite) {
+          if (window.GExportation.donneesSecurite.nomUtilisateur) {
             studentName = studentName || window.GExportation.donneesSecurite.nomUtilisateur;
           }
-          if (window.GExportation.donneesSecurite && window.GExportation.donneesSecurite.libelleClasse) {
+          if (window.GExportation.donneesSecurite.libelleClasse) {
             studentClass = studentClass || window.GExportation.donneesSecurite.libelleClasse;
           }
-        }
-
-        if (document.title && !schoolName) {
-          schoolName = document.title.replace('PRONOTE - ', '').trim();
-        }
-
-        // Parse visible grades on page
-        var foundGrades = [];
-        var cells = document.querySelectorAll('td, .note, [class*="note"], .GInterface_Notes');
-        for (var k = 0; k < cells.length; k++) {
-          var text = cells[k].innerText || '';
-          var m = text.match(/(\\d{1,2}[,.]\\d{1,2}|\\d{1,2})\\s*\\/\\s*20/);
-          if (m) {
-            var val = parseFloat(m[1].replace(',', '.'));
-            if (!isNaN(val) && val >= 0 && val <= 20) {
-              foundGrades.push({
-                id: 'g-scraped-' + k,
-                subject: 'Évaluation',
-                value: val,
-                outOf: 20,
-                coefficient: 1,
-                date: new Date().toISOString().split('T')[0],
-                description: 'Note synchronisée',
-              });
-            }
+          if (window.GExportation.donneesSecurite.libelleEtablissement) {
+            schoolName = schoolName || window.GExportation.donneesSecurite.libelleEtablissement;
           }
         }
 
-        var onPronotePage = window.location.href.includes('eleve.html') || 
-                            window.location.href.includes('/pronote/') || 
-                            studentName.length > 0;
-
-        if (onPronotePage) {
+        if (studentName) {
           window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'PRONOTE_REAL_DATA',
+            type: 'PRONOTE_IDENTITY_FOUND',
             name: studentName,
             studentClass: studentClass,
-            schoolName: schoolName,
-            url: window.location.href,
-            grades: foundGrades.slice(0, 10),
+            schoolName: schoolName || document.title,
+            url: window.location.href
           }));
         }
-      } catch (err) {}
+      } catch(e) {}
     }
 
-    setInterval(harvestPronoteData, 2000);
-    setTimeout(harvestPronoteData, 1000);
+    setInterval(scanDomIdentity, 1500);
+    setTimeout(scanDomIdentity, 800);
   })();
   true;
 `;
@@ -130,58 +132,66 @@ export const EntWebViewModal: React.FC<EntWebViewModalProps> = ({
 
   const handleMessage = async (event: any) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'PRONOTE_REAL_DATA') {
+      const payload = JSON.parse(event.nativeEvent.data);
+
+      if (payload.type === 'PRONOTE_RPC_RESPONSE') {
+        const rawRpc = payload.data;
         setCanSyncNow(true);
 
-        const realName = data.name || 'Élève Connecté';
-        const realClass = data.studentClass || 'Classe Active';
-        const realSchool = data.schoolName || entName;
+        // 1. Parse identity
+        const userParsed = PronoteParser.parseUser(rawRpc);
+        if (userParsed) {
+          setSession(
+            {
+              id: 'user-' + Date.now(),
+              name: userParsed.name,
+              establishment: userParsed.establishment || entName,
+              studentClass: userParsed.studentClass,
+            },
+            'token-live-' + Date.now()
+          );
+        }
 
-        // Save encrypted in hardware SecureStore
-        await SecureStorage.saveCredentials({
-          url: data.url,
-          username: realName,
-          password: 'ent_sso_session',
-          ent: entName,
-        });
-
-        // Set live user profile
-        setSession(
-          {
-            id: 'real-user-' + Date.now(),
-            name: realName,
-            establishment: realSchool,
-            studentClass: realClass,
-          },
-          'token-ram-live-' + Date.now()
-        );
-
-        // If real grades were parsed from page, sync them into the store
-        if (data.grades && data.grades.length > 0) {
-          const sum = data.grades.reduce((acc: number, g: any) => acc + g.value, 0);
-          const computedAvg = Math.round((sum / data.grades.length) * 100) / 100;
-
+        // 2. Parse grades and averages
+        const gradesData = PronoteParser.parseGrades(rawRpc);
+        if (gradesData.grades.length > 0 || gradesData.averages.length > 0 || gradesData.generalAverage > 0) {
           syncRealData({
-            grades: data.grades,
-            generalAverage: computedAvg > 0 ? computedAvg : 15.42,
+            grades: gradesData.grades.length > 0 ? gradesData.grades : undefined,
+            averages: gradesData.averages.length > 0 ? gradesData.averages : undefined,
+            generalAverage: gradesData.generalAverage > 0 ? gradesData.generalAverage : undefined,
           });
         }
 
-        try {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch {}
+        // 3. Parse homework
+        const hwList = PronoteParser.parseHomework(rawRpc);
+        if (hwList.length > 0) {
+          syncRealData({ homework: hwList });
+        }
 
-        onSuccess();
+        // 4. Parse timetable
+        const ttList = PronoteParser.parseTimetable(rawRpc);
+        if (ttList.length > 0) {
+          syncRealData({ timetable: ttList });
+        }
+      } else if (payload.type === 'PRONOTE_IDENTITY_FOUND') {
+        setCanSyncNow(true);
+        setSession(
+          {
+            id: 'user-' + Date.now(),
+            name: payload.name,
+            establishment: payload.schoolName || entName,
+            studentClass: payload.studentClass,
+          },
+          'token-live-' + Date.now()
+        );
       }
-    } catch (e) {}
+    } catch {}
   };
 
   const handleNavigationChange = async (navState: any) => {
     const url = navState.url;
     setCurrentUrl(url);
 
-    // If redirected to Pronote student portal after ENT login
     const isPronoteStudentArea = 
       url.includes('eleve.html') || 
       url.includes('/pronote/?identifiant=') ||
@@ -189,16 +199,18 @@ export const EntWebViewModal: React.FC<EntWebViewModalProps> = ({
 
     if (isPronoteStudentArea) {
       setCanSyncNow(true);
-      // Inject immediate extraction script
-      webViewRef.current?.injectJavaScript(INJECTED_DATA_HARVESTER);
+      webViewRef.current?.injectJavaScript(INJECTED_RPC_SNIFFER);
     }
   };
 
   const forceSync = () => {
-    webViewRef.current?.injectJavaScript(INJECTED_DATA_HARVESTER);
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
+    webViewRef.current?.injectJavaScript(INJECTED_RPC_SNIFFER);
     setTimeout(() => {
       onSuccess();
-    }, 1500);
+    }, 800);
   };
 
   const reloadPage = () => {
@@ -233,7 +245,7 @@ export const EntWebViewModal: React.FC<EntWebViewModalProps> = ({
                 style={[styles.syncBtn, { backgroundColor: currentTheme.colors.primary }]}
               >
                 <CheckCircle2 size={14} color="#FFFFFF" />
-                <Text style={styles.syncBtnText}>Importer</Text>
+                <Text style={styles.syncBtnText}>Valider</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={reloadPage} style={styles.reloadBtn}>
@@ -256,11 +268,12 @@ export const EntWebViewModal: React.FC<EntWebViewModalProps> = ({
           source={{ uri: initialUrl }}
           onNavigationStateChange={handleNavigationChange}
           onMessage={handleMessage}
-          injectedJavaScript={INJECTED_DATA_HARVESTER}
+          injectedJavaScriptBeforeContentLoaded={INJECTED_RPC_SNIFFER}
+          injectedJavaScript={INJECTED_RPC_SNIFFER}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => {
             setLoading(false);
-            webViewRef.current?.injectJavaScript(INJECTED_DATA_HARVESTER);
+            webViewRef.current?.injectJavaScript(INJECTED_RPC_SNIFFER);
           }}
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -317,13 +330,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   syncBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   reloadBtn: {

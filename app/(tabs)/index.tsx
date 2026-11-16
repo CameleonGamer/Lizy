@@ -182,38 +182,48 @@ export default function DashboardScreen() {
                   <Text style={[styles.widgetTitle, { color: currentTheme.colors.text }]}>Moyenne Générale</Text>
                 </View>
                 <Text style={[styles.gradeValue, { color: currentTheme.colors.success }]}>
-                  {generalAverage.toFixed(2)}
+                  {generalAverage > 0 ? generalAverage.toFixed(2) : '--'}
                   <Text style={styles.gradeOutOf}>/20</Text>
                 </Text>
               </View>
               <Text style={[styles.subText, { color: currentTheme.colors.textMuted }]}>
-                +0.4 pt d'amélioration ce trimestre • Points forts : Maths, Histoire
+                {generalAverage > 0 ? "Moyenne synchronisée avec Pronote" : "En attente des premières notes synchronisées"}
               </Text>
             </GlassCard>
           )}
 
           {/* Next Lesson Widget */}
-          {activeLayout !== 'gaming' && nextLesson && (
+          {activeLayout !== 'gaming' && (
             <GlassCard style={styles.card}>
               <View style={styles.widgetHeader}>
                 <View style={styles.titleRow}>
                   <Calendar size={18} color={currentTheme.colors.accent} />
                   <Text style={[styles.widgetTitle, { color: currentTheme.colors.text }]}>Prochain Cours</Text>
                 </View>
-                <View style={[styles.timeBadge, { backgroundColor: currentTheme.colors.surfaceGlass }]}>
-                  <Clock size={12} color={currentTheme.colors.accent} />
-                  <Text style={[styles.timeText, { color: currentTheme.colors.accent }]}>
-                    {nextLesson.startTime} - {nextLesson.endTime}
-                  </Text>
-                </View>
+                {nextLesson && (
+                  <View style={[styles.timeBadge, { backgroundColor: currentTheme.colors.surfaceGlass }]}>
+                    <Clock size={12} color={currentTheme.colors.accent} />
+                    <Text style={[styles.timeText, { color: currentTheme.colors.accent }]}>
+                      {nextLesson.startTime} - {nextLesson.endTime}
+                    </Text>
+                  </View>
+                )}
               </View>
 
-              <Text style={[styles.subjectName, { color: currentTheme.colors.text }]}>
-                {nextLesson.subject}
-              </Text>
-              <Text style={[styles.lessonDetails, { color: currentTheme.colors.textMuted }]}>
-                Salle {nextLesson.room} • {nextLesson.teacher}
-              </Text>
+              {nextLesson ? (
+                <>
+                  <Text style={[styles.subjectName, { color: currentTheme.colors.text }]}>
+                    {nextLesson.subject}
+                  </Text>
+                  <Text style={[styles.lessonDetails, { color: currentTheme.colors.textMuted }]}>
+                    Salle {nextLesson.room} • {nextLesson.teacher}
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.subText, { color: currentTheme.colors.textMuted }]}>
+                  Aucun cours programmé pour le moment
+                </Text>
+              )}
             </GlassCard>
           )}
 
@@ -229,31 +239,37 @@ export default function DashboardScreen() {
               </Text>
             </View>
 
-            {pendingHomework.map((hw) => (
-              <TouchableOpacity
-                key={hw.id}
-                onPress={() => toggleHomework(hw.id)}
-                style={styles.hwRow}
-              >
-                <CheckCircle2
-                  size={20}
-                  color={hw.completed ? currentTheme.colors.success : currentTheme.colors.textMuted}
-                />
-                <View style={styles.hwInfo}>
-                  <Text style={[styles.hwTitle, { color: currentTheme.colors.text }]}>
-                    {hw.title}
-                  </Text>
-                  <Text style={[styles.hwMeta, { color: currentTheme.colors.textMuted }]}>
-                    {hw.subject} • Pour {hw.dueDate}
-                  </Text>
-                </View>
-                {hw.isPersonal && (
-                  <View style={styles.persoBadge}>
-                    <Text style={styles.persoText}>Perso</Text>
+            {pendingHomework.length === 0 ? (
+              <Text style={[styles.subText, { color: currentTheme.colors.textMuted, paddingVertical: 8 }]}>
+                Aucun devoir à faire pour le moment ✨
+              </Text>
+            ) : (
+              pendingHomework.map((hw) => (
+                <TouchableOpacity
+                  key={hw.id}
+                  onPress={() => toggleHomework(hw.id)}
+                  style={styles.hwRow}
+                >
+                  <CheckCircle2
+                    size={20}
+                    color={hw.completed ? currentTheme.colors.success : currentTheme.colors.textMuted}
+                  />
+                  <View style={styles.hwInfo}>
+                    <Text style={[styles.hwTitle, { color: currentTheme.colors.text }]}>
+                      {hw.title}
+                    </Text>
+                    <Text style={[styles.hwMeta, { color: currentTheme.colors.textMuted }]}>
+                      {hw.subject} • Pour {hw.dueDate}
+                    </Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            ))}
+                  {hw.isPersonal && (
+                    <View style={styles.persoBadge}>
+                      <Text style={styles.persoText}>Perso</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
           </GlassCard>
         </View>
       </ScrollView>

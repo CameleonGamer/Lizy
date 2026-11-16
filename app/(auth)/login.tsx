@@ -16,6 +16,7 @@ import {
 import { router } from 'expo-router';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useDataStore } from '@/stores/useDataStore';
 import { SecureStorage } from '@/core/security/secureStorage';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { pronoteClient } from '@/core/pronote/client';
@@ -73,6 +74,7 @@ export default function LoginScreen() {
       return;
     }
 
+    useDataStore.getState().clearDataForRealUser();
     setLoading(true);
     try {
       await SecureStorage.saveCredentials({
@@ -119,10 +121,12 @@ export default function LoginScreen() {
       Alert.alert('URL requise', 'Veuillez indiquer l’adresse Pronote de votre établissement.');
       return;
     }
+    useDataStore.getState().clearDataForRealUser();
     setWebViewModalVisible(true);
   };
 
   const handleDemoAccess = () => {
+    useDataStore.getState().loadDemoData();
     setSession(
       {
         id: 'demo-student',
