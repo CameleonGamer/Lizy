@@ -29,7 +29,19 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Lizy a besoin de l'appareil photo pour scanner le QR Code Pronote."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Lizy utilise votre position pour trouver votre établissement scolaire."
+        }
+      ]
     ]
   }
 }
