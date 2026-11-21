@@ -15,13 +15,15 @@ interface GlassCardProps {
 }
 
 /**
- * True Apple Liquid Glass (Liquid Glassmorphism)
+ * Ultra-Luxurious Apple Liquid Glass (VisionOS & iOS 18 Specular Glass)
  *
- * Inspired by QWEA0/Liquid-Glass-Android & Apple VisionOS design:
- * - Real optical chromatic dispersion (prismatic edge aberration)
- * - Volumetric fluid glass core (physical 3D refraction depth)
- * - Directional Fresnel specular edge ring (apex highlight)
- * - Bottom caustic bounce (internal ambient reflection)
+ * Refined optical model:
+ * 1. Hardware frosted blur depth (BlurView)
+ * 2. Deep crystal glass tint with high transmissivity
+ * 3. Continuous 3D volumetric light field (silky smooth light-to-shadow gradient)
+ * 4. Micro-iridescent chromatic dispersion (< 7% opacity for genuine crystal optics, zero muddy glare)
+ * 5. Razor-sharp 1px glass perimeter highlight (apex light incidence)
+ * 6. Subtle ground caustic bounce at bottom rim
  */
 export const GlassCard: React.FC<GlassCardProps> = ({
   children,
@@ -39,64 +41,63 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   return (
     <View
       style={[
-        styles.outerBevel,
+        styles.outerContainer,
         {
           borderRadius: radius,
           backgroundColor: currentTheme.colors.surfaceGlass,
+          borderColor: currentTheme.colors.borderGlass,
         },
         style,
       ]}
     >
-      {/* 1. Hardware-accelerated Frosted Blur Layer */}
+      {/* 1. Frosted Blur Background */}
       {!disableGlass && (
         <BlurView
-          intensity={blurIntensity}
+          intensity={Platform.OS === 'android' ? Math.min(blurIntensity, 40) : blurIntensity}
           tint="dark"
           style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
         />
       )}
 
-      {/* 2. Volumetric Fluid Glass Core (Physical Refraction Depth) */}
+      {/* 2. Volumetric Crystal Refraction (Smooth Light Falloff) */}
       <LinearGradient
         colors={[
-          'rgba(255, 255, 255, 0.12)',
-          'rgba(255, 255, 255, 0.03)',
-          'rgba(0, 0, 0, 0.12)',
-          'rgba(255, 255, 255, 0.05)',
+          'rgba(255, 255, 255, 0.09)',
+          'rgba(255, 255, 255, 0.02)',
+          'rgba(0, 0, 0, 0.08)',
+          'rgba(255, 255, 255, 0.04)',
         ]}
+        locations={[0, 0.35, 0.75, 1]}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 0.8, y: 1 }}
         style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
         pointerEvents="none"
       />
 
-      {/* 3. Prismatic Chromatic Dispersion Bevel (SDF Optical Simulation) */}
+      {/* 3. Micro-Iridescent Prismatic Rim (Ultra-Subtle Crystal Sheen) */}
       {prismaticEffect && (
         <LinearGradient
           colors={[
-            'rgba(165, 243, 252, 0.32)', // Prismatic cyan sheen at apex
-            'rgba(255, 255, 255, 0.22)', // Pure specular luster
-            'rgba(244, 114, 182, 0.12)', // Subtle magenta dispersion
+            'rgba(186, 230, 253, 0.08)', // Delicate Ice-Blue ray
+            'rgba(255, 255, 255, 0.05)', // Neutral highlight
+            'rgba(244, 114, 182, 0.04)', // Micro-violet dispersion
             'transparent',
           ]}
+          locations={[0, 0.15, 0.35, 0.6]}
           start={{ x: 0, y: 0 }}
-          end={{ x: 0.8, y: 0.4 }}
+          end={{ x: 0.7, y: 0.7 }}
           style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
           pointerEvents="none"
         />
       )}
 
-      {/* 4. Top Fresnel Specular Luster (Crisp Edge Ring) */}
+      {/* 4. Top Glass Edge Highlight (Hairline Glint) */}
       <LinearGradient
-        colors={[
-          'rgba(255, 255, 255, 0.42)',
-          'rgba(255, 255, 255, 0.12)',
-          'transparent',
-        ]}
+        colors={['rgba(255, 255, 255, 0.22)', 'transparent']}
         start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.2 }}
+        end={{ x: 0.5, y: 1 }}
         style={[
-          styles.specularRing,
+          styles.topGlint,
           {
             borderTopLeftRadius: radius,
             borderTopRightRadius: radius,
@@ -105,13 +106,13 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         pointerEvents="none"
       />
 
-      {/* 5. Bottom Caustic Ground Bounce */}
+      {/* 5. Bottom Rim Caustic Reflection */}
       <LinearGradient
         colors={['transparent', 'rgba(255, 255, 255, 0.06)']}
-        start={{ x: 0.5, y: 0.85 }}
+        start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={[
-          styles.causticBounce,
+          styles.bottomCaustic,
           {
             borderBottomLeftRadius: radius,
             borderBottomRightRadius: radius,
@@ -120,12 +121,12 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         pointerEvents="none"
       />
 
-      {/* 6. Optional Ambient Glow */}
+      {/* 6. Optional Ambient Theme Glow */}
       {glowColor && (
         <LinearGradient
-          colors={[`${glowColor}25`, 'transparent']}
+          colors={[`${glowColor}18`, 'transparent']}
           start={{ x: 0, y: 0 }}
-          end={{ x: 0.6, y: 0.6 }}
+          end={{ x: 0.7, y: 0.7 }}
           style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
           pointerEvents="none"
         />
@@ -138,39 +139,35 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  outerBevel: {
+  outerContainer: {
     borderWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.35)',
-    borderLeftColor: 'rgba(255, 255, 255, 0.25)',
-    borderRightColor: 'rgba(255, 255, 255, 0.10)',
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
     position: 'relative',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.4,
-        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 14,
       },
       android: {
-        elevation: 8,
+        elevation: 2,
       },
     }),
   },
-  specularRing: {
+  topGlint: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 20,
+    height: 1.5,
   },
-  causticBounce: {
+  bottomCaustic: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 14,
+    height: 1.5,
   },
   contentContainer: {
     padding: 16,
