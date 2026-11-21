@@ -113,7 +113,15 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSuccess();
     } catch (err: any) {
-      Alert.alert('Échec de connexion', err?.message || 'Code PIN invalide ou QR code expiré (validité 10 min).');
+      const msg = err?.message || '';
+      if (msg.includes('expiré') || msg.includes('7')) {
+        Alert.alert(
+          'QR Code expiré ou PIN incorrect',
+          'Le QR Code Pronote n’est valable que 10 minutes. Sur Pronote Web, fermez la fenêtre "Application mobile", regénérez un nouveau QR code avec votre code PIN à 4 chiffres, et rescannex-le.'
+        );
+      } else {
+        Alert.alert('Échec de connexion', msg || 'Vérifiez votre connexion internet ou votre code PIN.');
+      }
     } finally {
       setIsAuthenticating(false);
     }

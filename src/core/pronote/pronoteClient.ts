@@ -13,15 +13,6 @@ export interface PronoteQrPayload {
   avecPageConnexion?: boolean;
 }
 
-export interface PronoteSessionCredentials {
-  url: string;
-  username: string;
-  token: string;
-  uuid: string;
-  clientIdentifier?: string;
-  lastConnected?: string;
-}
-
 /**
  * Converts a byte array to CryptoJS WordArray
  */
@@ -34,14 +25,7 @@ function uint8ArrayToWordArray(u8Array: Uint8Array): CryptoJS.lib.WordArray {
 }
 
 /**
- * Removes every second character (Pronote alea stripping)
- */
-function removeEverySecondChar(text: string): string {
-  return text.split('').filter((_, i) => i % 2 === 0).join('');
-}
-
-/**
- * Parses comma-separated byte string into CryptoJS WordArray
+ * Parses comma-separated byte string (e.g. "54,23,101...") into CryptoJS WordArray
  */
 function parseCommaSeparatedBytesToWordArray(str: string): CryptoJS.lib.WordArray {
   const bytes = str
@@ -75,7 +59,7 @@ class PronoteEncryption {
       mode: CryptoJS.mode.CBC,
       padding: CryptoJS.pad.Pkcs7,
     });
-    return encrypted.ciphertext.toString(CryptoJS.enc.Hex).toUpperCase();
+    return encrypted.ciphertext.toString(CryptoJS.enc.Hex);
   }
 
   aesDecrypt(hexCipher: string): string {
@@ -139,6 +123,33 @@ export class PronoteClient {
   }
 
   /**
+   * Normalizes any Pronote URL into the official mobile URL
+   */
+  static normalizePronoteUrl(rawUrl: string): { fixedUrl: string; rootSite: string; htmlPage: string } {
+    const urlObj = new URL(rawUrl.trim());
+    let pathname = urlObj.pathname.replace(/\/+$/, '');
+    const pathParts = pathname.split('/');
+    let last = pathParts[pathParts.length - 1] || '';
+
+    if (!last.endsWith('.html')) {
+      last = 'eleve.html';
+      pathParts.push(last);
+    }
+
+    if (!last.startsWith('mobile.')) {
+      pathParts[pathParts.length - 1] = 'mobile.' + last;
+    }
+
+    urlObj.pathname = pathParts.join('/');
+    urlObj.search = 'fd=1&bydlg=A6ABB224-12DD-4E31-AD3E-8A39A1C2C335&login=true';
+
+    const fixedUrl = urlObj.toString();
+    const rootSite = fixedUrl.substring(0, fixedUrl.lastIndexOf('/'));
+    const htmlPage = fixedUrl.substring(fixedUrl.lastIndexOf('/') + 1);
+    return { fixedUrl, rootSite, htmlPage };
+  }
+
+  /**
    * Calculates school week from date
    */
   private getWeek(date: Date): number {
@@ -175,14 +186,13 @@ export class PronoteClient {
 
     if (isEncrypted) {
       if (typeof encodedDataSec === 'object') {
-        encodedDataSec = this.encryption.aesEncrypt(JSON.stringify(encodedDataSec));
+        encodedDataSec = this.encryption.aesEncrypt(JSON.stringify(encodedDataSec)).toUpperCase();
       } else {
-        // If compressed hex string, encrypt raw hex bytes
-        encodedDataSec = this.encryption.aesEncrypt(encodedDataSec);
+        encodedDataSec = this.encryption.aesEncrypt(encodedDataSec).toUpperCase();
       }
     }
 
-    // Encrypt request number
+    // Encrypt request number with current communication key and IV
     const rNumber = this.encryption.aesEncrypt(String(this.requestNumber)).toLowerCase();
 
     const bodyPayload = {
@@ -213,7 +223,7 @@ export class PronoteClient {
 
     if (resJson.Erreur) {
       const errCode = resJson.Erreur.G;
-      const errMsg = resJson.Erreur.Titre || `Erreur Pronote code ${errCode}`;
+      const errMsg = resJson.Erreur.Titre || resJson.Erreur.Message || `Erreur Pronote code ${errCode}`;
       throw new Error(errMsg);
     }
 
@@ -259,27 +269,14 @@ export class PronoteClient {
     homework: Homework[];
     timetable: TimetableLesson[];
   }> {
-    // 1. Decrypt credentials
+    // 1. Decrypt credentials from QR Code
     const decryptedLogin = PronoteClient.decryptQrField(payload.login, pin);
     const decryptedJeton = PronoteClient.decryptQrField(payload.jeton, pin);
 
-    // 2. Normalize URL for mobile app
-    let cleanUrl = payload.url.trim();
-    const urlObj = new URL(cleanUrl);
-
-    // Replace last segment with mobile.eleve.html
-    const pathParts = urlObj.pathname.split('/');
-    let lastSegment = pathParts[pathParts.length - 1];
-    if (!lastSegment.startsWith('mobile.')) {
-      lastSegment = 'mobile.' + lastSegment;
-      pathParts[pathParts.length - 1] = lastSegment;
-    }
-    urlObj.pathname = pathParts.join('/');
-    urlObj.search = 'fd=1&bydlg=A6ABB224-12DD-4E31-AD3E-8A39A1C2C335&login=true';
-
-    const fixedUrl = urlObj.toString();
-    this.rootSite = fixedUrl.substring(0, fixedUrl.lastIndexOf('/'));
-    this.htmlPage = fixedUrl.substring(fixedUrl.lastIndexOf('/') + 1);
+    // 2. Normalize Pronote URL
+    const { fixedUrl, rootSite, htmlPage } = PronoteClient.normalizePronoteUrl(payload.url);
+    this.rootSite = rootSite;
+    this.htmlPage = htmlPage;
 
     // 3. GET HTML page and extract Start({ ... }) attributes
     const htmlRes = await fetch(fixedUrl, {
@@ -322,13 +319,12 @@ export class PronoteClient {
     // 4. Send FonctionParametres (initialise encryption IV)
     const ivBase64 = CryptoJS.enc.Base64.stringify(uint8ArrayToWordArray(this.encryption.aesIvTemp));
     const initPayload = {
-      data: {
-        Uuid: ivBase64,
-        identifiantNav: this.clientIdentifier,
-      },
+      Uuid: ivBase64,
+      identifiantNav: this.clientIdentifier,
     };
 
-    const funcParamsRes = await this.postRpc('FonctionParametres', undefined, initPayload.data);
+    const funcParamsRes = await this.postRpc('FonctionParametres', undefined, initPayload);
+    // Update IV to MD5(aesIvTemp) as required by Pronote protocol
     this.encryption.setIvFromTemp();
 
     const generalInfo = funcParamsRes?.dataSec?.data?.General;
@@ -374,21 +370,46 @@ export class PronoteClient {
     const motdepasse = CryptoJS.SHA256(alea + password).toString(CryptoJS.enc.Hex).toUpperCase();
     const authKey = CryptoJS.MD5(username + motdepasse);
 
-    // Save authKey temporarily into encryption
-    this.encryption.setKey(authKey);
-
-    // 6. Compute challenge response (supports old alea scheme and modern scheme)
+    // 6. Compute challenge response
+    // Modern instances (2024-2026): encrypt raw challenge directly with authKey and current IV
+    // Legacy instances: decrypt hex bytes, strip odd chars, re-encrypt
     let solvedChallenge = '';
     try {
-      const decChallenge = this.encryption.aesDecrypt(challenge);
-      const decNoAlea = removeEverySecondChar(decChallenge);
-      solvedChallenge = this.encryption.aesEncrypt(decNoAlea);
+      const ciphertext = CryptoJS.enc.Hex.parse(challenge);
+      const decChallenge = CryptoJS.AES.decrypt({ ciphertext } as any, authKey, {
+        iv: this.encryption.aesIv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+      }).toString(CryptoJS.enc.Utf8);
+
+      if (decChallenge && /^[\x20-\x7E]+$/.test(decChallenge)) {
+        const decNoAlea = decChallenge.split('').filter((_, i) => i % 2 === 0).join('');
+        const enc = CryptoJS.AES.encrypt(decNoAlea, authKey, {
+          iv: this.encryption.aesIv,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7,
+        });
+        solvedChallenge = enc.ciphertext.toString(CryptoJS.enc.Hex);
+      } else {
+        const enc = CryptoJS.AES.encrypt(challenge, authKey, {
+          iv: this.encryption.aesIv,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7,
+        });
+        solvedChallenge = enc.ciphertext.toString(CryptoJS.enc.Hex);
+      }
     } catch {
-      // Fallback for migrated PRONOTE instances (raw challenge re-encrypted)
-      solvedChallenge = this.encryption.aesEncrypt(challenge);
+      const enc = CryptoJS.AES.encrypt(challenge, authKey, {
+        iv: this.encryption.aesIv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+      });
+      solvedChallenge = enc.ciphertext.toString(CryptoJS.enc.Hex);
     }
 
     // 7. Send Authentification
+    // NOTE: request_number order (rNumber) MUST still be encrypted with initial communication key MD5('')!
+    // Do NOT change this.encryption.aesKey before sending Authentification.
     const authPayload = {
       connexion: 0,
       challenge: solvedChallenge.toLowerCase(),
@@ -398,11 +419,17 @@ export class PronoteClient {
     const authRes = await this.postRpc('Authentification', undefined, authPayload);
     const authData = authRes?.dataSec?.data;
     if (!authData || !authData.cle) {
-      throw new Error('Échec de l’authentification. Vérifiez le code PIN ou regénérez un QR Code.');
+      throw new Error('Échec de l’authentification. Vérifiez le code PIN ou regénérez un QR Code (validité 10 min).');
     }
 
-    // Key change: decrypt cle with authKey, then MD5(parsedBytes) becomes the session key!
-    const decryptedCle = this.encryption.aesDecrypt(authData.cle);
+    // Key change: decrypt cle with authKey, then MD5(parsedBytes) becomes the session key for all subsequent calls!
+    const cleCiphertext = CryptoJS.enc.Hex.parse(authData.cle);
+    const decryptedCle = CryptoJS.AES.decrypt({ ciphertext: cleCiphertext } as any, authKey, {
+      iv: this.encryption.aesIv,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    }).toString(CryptoJS.enc.Utf8);
+
     const sessionKeyWa = CryptoJS.MD5(parseCommaSeparatedBytesToWordArray(decryptedCle));
     this.encryption.setKey(sessionKeyWa);
 
