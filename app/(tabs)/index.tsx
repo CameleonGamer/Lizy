@@ -5,7 +5,8 @@ import {
   View, 
   ScrollView, 
   TouchableOpacity, 
-  Platform 
+  Platform,
+  Dimensions 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,6 +16,7 @@ import { useGamingStore } from '@/stores/useGamingStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { GlassCard } from '@/components/glass/GlassCard';
+import { KiviatRadarChart } from '@/components/charts/KiviatRadarChart';
 import { FocusTimerModal } from '@/components/focus/FocusTimerModal';
 import { WidgetEditorModal } from '@/components/widgets/WidgetEditorModal';
 import { LayoutPreset } from '@/types';
@@ -30,8 +32,11 @@ import {
   Calendar,
   Target,
   BarChart2,
-  LogIn
+  LogIn,
+  Compass
 } from 'lucide-react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const LAYOUT_PRESETS: { label: string; value: LayoutPreset }[] = [
   { label: 'Complète', value: 'complete' },
@@ -45,7 +50,7 @@ export default function DashboardScreen() {
   const { currentTheme } = useThemeStore();
   const { activeLayout, setLayoutPreset } = useWidgetStore();
   const { xp, level, streakDays, claimHomeworkXp } = useGamingStore();
-  const { generalAverage, homework, timetable, toggleHomework } = useDataStore();
+  const { generalAverage, averages, homework, timetable, toggleHomework } = useDataStore();
   const { user } = useAuthStore();
 
   const [focusModalVisible, setFocusModalVisible] = useState(false);
@@ -224,6 +229,29 @@ export default function DashboardScreen() {
               <Text style={[styles.subText, { color: currentTheme.colors.textMuted }]}>
                 {generalAverage > 0 ? "Moyenne synchronisée avec Pronote" : "En attente des premières notes synchronisées"}
               </Text>
+            </GlassCard>
+          )}
+
+          {/* Performance Kiviat Radar Widget */}
+          {(activeLayout === 'complete' || activeLayout === 'performance') && averages.length >= 3 && (
+            <GlassCard style={styles.card}>
+              <View style={styles.widgetHeader}>
+                <View style={styles.titleRow}>
+                  <Compass size={18} color={currentTheme.colors.primary} />
+                  <Text style={[styles.widgetTitle, { color: currentTheme.colors.text }]}>
+                    Radar des Matières (Kiviat)
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/grades')}>
+                  <Text style={[styles.badgeText, { color: currentTheme.colors.primary }]}>Détails ›</Text>
+                </TouchableOpacity>
+              </View>
+
+              <KiviatRadarChart
+                averages={averages}
+                size={Math.min(SCREEN_WIDTH - 64, 280)}
+                showCardWrapper={false}
+              />
             </GlassCard>
           )}
 

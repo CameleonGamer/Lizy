@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { GlassCard } from '@/components/glass/GlassCard';
+import { KiviatRadarChart } from '@/components/charts/KiviatRadarChart';
+import { ImprovementAdvisorCard } from '@/components/grades/ImprovementAdvisorCard';
 import { cleanPronoteHtml } from '@/core/utils/htmlSanitizer';
 import { 
   TrendingUp, 
@@ -11,12 +13,14 @@ import {
   ArrowUpRight, 
   ArrowDownRight, 
   Zap, 
-  Calendar 
+  Calendar,
+  Compass
 } from 'lucide-react-native';
 
 export default function GradesScreen() {
   const { currentTheme } = useThemeStore();
   const { generalAverage, averages, grades } = useDataStore();
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
   const strongSubjects = averages.filter((a) => a.average >= 15);
   const weakSubjects = averages.filter((a) => a.average < 14);
@@ -110,6 +114,34 @@ export default function GradesScreen() {
               )}
             </GlassCard>
           </View>
+        )}
+
+        {/* Kiviat Radar Chart (Performance & Balance Analysis) */}
+        {averages.length >= 3 && (
+          <View style={styles.chartSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Compass size={18} color={currentTheme.colors.primary} />
+              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text }]}>
+                Profil & Équilibre (Diagramme de Kiviat)
+              </Text>
+            </View>
+
+            <KiviatRadarChart
+              averages={averages}
+              selectedSubject={selectedSubject}
+              onSelectSubject={setSelectedSubject}
+            />
+          </View>
+        )}
+
+        {/* AI Academic Diagnostic & Strategic Improvement Advisor */}
+        {averages.length > 0 && (
+          <ImprovementAdvisorCard
+            averages={averages}
+            grades={grades}
+            selectedSubject={selectedSubject}
+            onSelectSubject={setSelectedSubject}
+          />
         )}
 
         {/* Subject Breakdown with Visual Bars */}
@@ -313,6 +345,15 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     marginBottom: 0,
+  },
+  chartSection: {
+    gap: 8,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
   },
   emptySectionText: {
     fontSize: 13,
