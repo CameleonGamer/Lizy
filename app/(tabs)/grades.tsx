@@ -73,8 +73,8 @@ export default function GradesScreen() {
                 <Text style={[styles.perfTitle, { color: '#10B981' }]}>Points Forts</Text>
               </View>
               {strongSubjects.length > 0 ? (
-                strongSubjects.map((s) => (
-                  <View key={s.subject} style={styles.perfItem}>
+                strongSubjects.map((s, idx) => (
+                  <View key={`strong-${s.id || s.subject}-${idx}`} style={styles.perfItem}>
                     <Text numberOfLines={1} style={[styles.perfSubject, { color: currentTheme.colors.text }]}>
                       {s.subject}
                     </Text>
@@ -95,8 +95,8 @@ export default function GradesScreen() {
                 <Text style={[styles.perfTitle, { color: '#F59E0B' }]}>À renforcer</Text>
               </View>
               {weakSubjects.length > 0 ? (
-                weakSubjects.map((s) => (
-                  <View key={s.subject} style={styles.perfItem}>
+                weakSubjects.map((s, idx) => (
+                  <View key={`weak-${s.id || s.subject}-${idx}`} style={styles.perfItem}>
                     <Text numberOfLines={1} style={[styles.perfSubject, { color: currentTheme.colors.text }]}>
                       {s.subject}
                     </Text>
@@ -123,8 +123,8 @@ export default function GradesScreen() {
               Aucune moyenne par matière disponible pour cette période.
             </Text>
           ) : (
-            averages.map((item) => (
-              <View key={item.subject} style={styles.subjectRow}>
+            averages.map((item, idx) => (
+              <View key={`avg-row-${item.id || item.subject}-${idx}`} style={styles.subjectRow}>
                 <View style={styles.subjectHeader}>
                   <Text style={[styles.subjectName, { color: currentTheme.colors.text }]}>
                     {item.subject}
@@ -168,8 +168,8 @@ export default function GradesScreen() {
               Aucune évaluation enregistrée pour cette période.
             </Text>
           ) : (
-            grades.map((grade) => (
-              <View key={grade.id} style={styles.gradeHistoryItem}>
+            grades.map((grade, idx) => (
+              <View key={`grade-${grade.id}-${idx}`} style={styles.gradeHistoryItem}>
                 <View style={styles.gradeInfoCol}>
                   <Text style={[styles.gradeSubject, { color: currentTheme.colors.text }]}>
                     {grade.subject}

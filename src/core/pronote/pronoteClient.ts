@@ -542,7 +542,7 @@ export class PronoteClient {
         const curAverages: SubjectAverage[] = [];
         const rawServices = notesData?.listeServices?.V || notesData?.listeServices || [];
         if (Array.isArray(rawServices)) {
-          rawServices.forEach((s: any) => {
+          rawServices.forEach((s: any, idx: number) => {
             const subject = s?.L || s?.libelle || 'Matière';
             const rawAvg = s?.moyEleve?.V !== undefined ? s.moyEleve.V : s?.moyEleve;
             const avgStr = String(rawAvg || '').replace(',', '.');
@@ -554,6 +554,7 @@ export class PronoteClient {
 
             if (!isNaN(avgNum)) {
               curAverages.push({
+                id: `avg-${s?.N || s?.id || idx}-${subject}`,
                 subject,
                 average: avgNum,
                 classAverage: !isNaN(classAvgNum) ? classAvgNum : undefined,

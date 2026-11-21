@@ -59,6 +59,7 @@ export interface Grade {
 }
 
 export interface SubjectAverage {
+  id?: string;
   subject: string;
   average: number;
   classAverage?: number;

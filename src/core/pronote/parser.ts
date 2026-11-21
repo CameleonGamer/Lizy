@@ -94,6 +94,7 @@ export const PronoteParser = {
 
           if (!isNaN(avgNum)) {
             averages.push({
+              id: `avg-${s?.N || s?.id || idx}-${subject}`,
               subject,
               average: avgNum,
               classAverage: !isNaN(classAvgNum) ? classAvgNum : undefined,
