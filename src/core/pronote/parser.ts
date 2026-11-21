@@ -1,5 +1,6 @@
 import { Grade, Homework, TimetableLesson, SubjectAverage } from '@/types';
 import { cleanPronoteHtml } from '../utils/htmlSanitizer';
+import { sortHomeworkByDueDate } from '../utils/dateUtils';
 
 export { cleanPronoteHtml };
 
@@ -198,7 +199,7 @@ export const PronoteParser = {
         });
       }
     } catch {}
-    return list;
+    return sortHomeworkByDueDate(list);
   },
 
   /**

@@ -16,6 +16,7 @@ import { useDataStore } from '@/stores/useDataStore';
 import { useGamingStore } from '@/stores/useGamingStore';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { cleanPronoteHtml } from '@/core/utils/htmlSanitizer';
+import { isBeforeToday } from '@/core/utils/dateUtils';
 import { 
   CheckCircle2, 
   Circle, 
@@ -33,7 +34,7 @@ export default function HomeworkScreen() {
   const { homework, toggleHomework, toggleSubtask, addPersonalHomework } = useDataStore();
   const addXp = useGamingStore((s) => s.addXp);
 
-  const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [filter, setFilter] = useState<'pending' | 'completed' | 'past' | 'all'>('pending');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -43,9 +44,17 @@ export default function HomeworkScreen() {
   const [newDueDate, setNewDueDate] = useState('');
   const [newMinutes, setNewMinutes] = useState('30');
 
+  const isPast = (d: string) => isBeforeToday(d);
+
+  // Homework before today are strictly excluded from pending ("À faire")
+  const pendingHomework = homework.filter((h) => !h.completed && !isPast(h.dueDate));
+  const completedHomework = homework.filter((h) => h.completed);
+  const pastHomework = homework.filter((h) => !h.completed && isPast(h.dueDate));
+
   const filtered = homework.filter((h) => {
-    if (filter === 'pending') return !h.completed;
+    if (filter === 'pending') return !h.completed && !isPast(h.dueDate);
     if (filter === 'completed') return h.completed;
+    if (filter === 'past') return !h.completed && isPast(h.dueDate);
     return true;
   });
 
@@ -93,13 +102,17 @@ export default function HomeworkScreen() {
 
       {/* Filter Tabs */}
       <View style={styles.filterRow}>
-        {(['all', 'pending', 'completed'] as const).map((f) => {
-          const isSelected = filter === f;
-          const label = f === 'all' ? 'Tous' : f === 'pending' ? 'À faire' : 'Terminés';
+        {[
+          { key: 'pending' as const, label: `À faire (${pendingHomework.length})` },
+          { key: 'completed' as const, label: `Terminés (${completedHomework.length})` },
+          ...(pastHomework.length > 0 ? [{ key: 'past' as const, label: `Passés (${pastHomework.length})` }] : []),
+          { key: 'all' as const, label: `Tous (${homework.length})` },
+        ].map((f) => {
+          const isSelected = filter === f.key;
           return (
             <TouchableOpacity
-              key={f}
-              onPress={() => setFilter(f)}
+              key={f.key}
+              onPress={() => setFilter(f.key)}
               style={[
                 styles.filterTab,
                 {
@@ -114,7 +127,7 @@ export default function HomeworkScreen() {
                   { color: isSelected ? currentTheme.colors.primary : currentTheme.colors.textMuted },
                 ]}
               >
-                {label}
+                {f.label}
               </Text>
             </TouchableOpacity>
           );
@@ -123,33 +136,57 @@ export default function HomeworkScreen() {
 
       {/* Homework List */}
       <ScrollView contentContainerStyle={styles.scrollList} showsVerticalScrollIndicator={false}>
-        {filtered.map((hw) => {
-          const isExpanded = expandedId === hw.id;
-          return (
-            <GlassCard key={hw.id} style={styles.hwCard}>
-              <View style={styles.cardTopRow}>
-                <TouchableOpacity
-                  onPress={() => handleToggle(hw.id, hw.completed)}
-                  style={styles.checkTouch}
-                >
-                  {hw.completed ? (
-                    <CheckCircle2 size={24} color={currentTheme.colors.success} />
-                  ) : (
-                    <Circle size={24} color={currentTheme.colors.textMuted} />
-                  )}
-                </TouchableOpacity>
-
-                <View style={styles.cardHeaderInfo}>
-                  <View style={styles.badgeLine}>
-                    <Text style={[styles.subjectTag, { color: currentTheme.colors.accent }]}>
-                      {hw.subject}
-                    </Text>
-                    {hw.isPersonal && (
-                      <View style={styles.persoBadge}>
-                        <Text style={styles.persoText}>Devoir Personnel</Text>
-                      </View>
+        {filtered.length === 0 ? (
+          <GlassCard style={styles.emptyCard}>
+            <CheckCircle2 size={36} color={currentTheme.colors.primary} />
+            <Text style={[styles.emptyTitle, { color: currentTheme.colors.text }]}>
+              {filter === 'pending'
+                ? 'Aucun devoir à faire ! 🎉'
+                : filter === 'completed'
+                ? 'Aucun devoir terminé pour l’instant'
+                : filter === 'past'
+                ? 'Aucun devoir passé en retard'
+                : 'Aucun devoir enregistré'}
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: currentTheme.colors.textMuted }]}>
+              {filter === 'pending'
+                ? 'Vous êtes parfaitement à jour dans votre travail.'
+                : 'Vos devoirs apparaîtront ici.'}
+            </Text>
+          </GlassCard>
+        ) : (
+          filtered.map((hw) => {
+            const isExpanded = expandedId === hw.id;
+            return (
+              <GlassCard key={hw.id} style={styles.hwCard}>
+                <View style={styles.cardTopRow}>
+                  <TouchableOpacity
+                    onPress={() => handleToggle(hw.id, hw.completed)}
+                    style={styles.checkTouch}
+                  >
+                    {hw.completed ? (
+                      <CheckCircle2 size={24} color={currentTheme.colors.success} />
+                    ) : (
+                      <Circle size={24} color={currentTheme.colors.textMuted} />
                     )}
-                  </View>
+                  </TouchableOpacity>
+
+                  <View style={styles.cardHeaderInfo}>
+                    <View style={styles.badgeLine}>
+                      <Text style={[styles.subjectTag, { color: currentTheme.colors.accent }]}>
+                        {hw.subject}
+                      </Text>
+                      {hw.isPersonal && (
+                        <View style={styles.persoBadge}>
+                          <Text style={styles.persoText}>Devoir Personnel</Text>
+                        </View>
+                      )}
+                      {isPast(hw.dueDate) && !hw.completed && (
+                        <View style={[styles.pastBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                          <Text style={[styles.pastBadgeText, { color: '#EF4444' }]}>Passé</Text>
+                        </View>
+                      )}
+                    </View>
                   <Text
                     style={[
                       styles.hwTitle,
@@ -241,7 +278,7 @@ export default function HomeworkScreen() {
               )}
             </GlassCard>
           );
-        })}
+        }))}
       </ScrollView>
 
       {/* Add Modal */}
@@ -396,6 +433,34 @@ const styles = StyleSheet.create({
     color: '#38BDF8',
     fontSize: 10,
     fontWeight: '700',
+  },
+  pastBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  pastBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  emptyCard: {
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderRadius: 20,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   hwTitle: {
     fontSize: 15,

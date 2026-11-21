@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Grade, Homework, TimetableLesson, PronoteMessage, SubjectAverage } from '@/types';
+import { sortHomeworkByDueDate } from '@/core/utils/dateUtils';
 
 const MOCK_DATA = {
   generalAverage: 15.42,
@@ -168,7 +169,7 @@ export const useDataStore = create<DataState>((set) => ({
       ...state,
       ...payload,
       grades: payload.grades !== undefined ? payload.grades : state.grades,
-      homework: payload.homework !== undefined ? payload.homework : state.homework,
+      homework: payload.homework !== undefined ? sortHomeworkByDueDate(payload.homework) : state.homework,
       timetable: payload.timetable !== undefined ? payload.timetable : state.timetable,
       messages: payload.messages !== undefined ? payload.messages : state.messages,
       averages: payload.averages !== undefined ? payload.averages : state.averages,
@@ -207,7 +208,7 @@ export const useDataStore = create<DataState>((set) => ({
       completed: false,
       subtasks: [],
     };
-    set((state) => ({ homework: [newHw, ...state.homework] }));
+    set((state) => ({ homework: sortHomeworkByDueDate([newHw, ...state.homework]) }));
   },
 
   addTimetableEvent: (event) => {

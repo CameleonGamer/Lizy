@@ -14,6 +14,7 @@ import { PRONOTE_APP_USER_AGENT } from './constants';
 import { Grade, Homework, TimetableLesson, SubjectAverage, PronoteUser } from '@/types';
 import { SecureStorage } from '../security/secureStorage';
 import { cleanPronoteHtml } from '../utils/htmlSanitizer';
+import { sortHomeworkByDueDate } from '../utils/dateUtils';
 
 export interface PronoteQrPayload {
   url: string;
@@ -820,7 +821,7 @@ export class PronoteClient {
       grades,
       averages,
       generalAverage,
-      homework,
+      homework: sortHomeworkByDueDate(homework),
       timetable,
     };
   }

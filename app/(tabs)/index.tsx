@@ -19,6 +19,7 @@ import { FocusTimerModal } from '@/components/focus/FocusTimerModal';
 import { WidgetEditorModal } from '@/components/widgets/WidgetEditorModal';
 import { LayoutPreset } from '@/types';
 import { cleanPronoteHtml } from '@/core/utils/htmlSanitizer';
+import { isBeforeToday } from '@/core/utils/dateUtils';
 import { 
   Flame, 
   Sparkles, 
@@ -64,7 +65,8 @@ export default function DashboardScreen() {
     return false;
   }) || timetable[0];
 
-  const pendingHomework = homework.filter((h) => !h.completed);
+  // Exclude past homework before today from pending count and dashboard widget
+  const pendingHomework = homework.filter((h) => !h.completed && !isBeforeToday(h.dueDate));
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
