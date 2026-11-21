@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Home, 
   BookOpen, 
@@ -14,6 +15,11 @@ import { useThemeStore } from '@/stores/useThemeStore';
 
 export default function TabsLayout() {
   const { currentTheme } = useThemeStore();
+  const insets = useSafeAreaInsets();
+
+  // Ensure bottom bar never collides with Android 3-button navigation or iOS home indicator
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 28);
+  const barHeight = 56 + bottomPadding;
 
   return (
     <Tabs
@@ -23,13 +29,19 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: currentTheme.colors.textMuted,
         tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabBarLabel,
-        tabBarStyle: [
-          styles.tabBar,
-          {
-            backgroundColor: currentTheme.colors.surfaceGlass,
-            borderTopColor: currentTheme.colors.borderGlass,
-          },
-        ],
+        tabBarStyle: {
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderTopWidth: 1,
+          backgroundColor: currentTheme.colors.surfaceGlass,
+          borderTopColor: currentTheme.colors.borderGlass,
+          height: barHeight,
+          paddingBottom: bottomPadding,
+          paddingTop: 6,
+          elevation: 12,
+        },
         tabBarBackground: () => (
           <BlurView
             tint="dark"
@@ -86,14 +98,6 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    position: 'absolute',
-    borderTopWidth: 1,
-    height: Platform.OS === 'ios' ? 88 : 68,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 10,
-    paddingTop: 8,
-    elevation: 10,
-  },
   tabBarLabel: {
     fontSize: 10,
     fontWeight: '600',

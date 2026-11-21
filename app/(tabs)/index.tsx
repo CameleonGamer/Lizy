@@ -5,9 +5,9 @@ import {
   View, 
   ScrollView, 
   TouchableOpacity, 
-  SafeAreaView, 
   Platform 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useWidgetStore } from '@/stores/useWidgetStore';
 import { useGamingStore } from '@/stores/useGamingStore';
@@ -65,7 +65,7 @@ export default function DashboardScreen() {
   const pendingHomework = homework.filter((h) => !h.completed);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

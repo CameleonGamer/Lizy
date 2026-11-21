@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { PronoteUser } from '@/types';
 import { SecureStorage } from '@/core/security/secureStorage';
+import { useDataStore } from './useDataStore';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -38,6 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     // Flush RAM & flush hardware secure store
     await SecureStorage.wipeAllSecureData();
+    useDataStore.getState().clearDataForRealUser();
     set({
       isAuthenticated: false,
       user: null,

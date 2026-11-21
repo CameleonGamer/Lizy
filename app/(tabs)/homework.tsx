@@ -5,11 +5,11 @@ import {
   View, 
   ScrollView, 
   TouchableOpacity, 
-  SafeAreaView, 
   TextInput,
   Modal,
   Platform 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useDataStore } from '@/stores/useDataStore';
@@ -75,7 +75,7 @@ export default function HomeworkScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
       <View style={styles.header}>
         <View>
           <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>GESTION DU TRAVAIL</Text>

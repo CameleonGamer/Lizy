@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, SafeAreaView, Platform } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { GlassCard } from '@/components/glass/GlassCard';
@@ -21,7 +22,7 @@ export default function GradesScreen() {
   const weakSubjects = averages.filter((a) => a.average < 14);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>

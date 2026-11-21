@@ -5,11 +5,11 @@ import {
   View, 
   ScrollView, 
   TouchableOpacity, 
-  SafeAreaView, 
   Modal,
   TextInput,
   Platform 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { GlassCard } from '@/components/glass/GlassCard';
@@ -142,7 +142,7 @@ export default function ScheduleScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
       <View style={styles.header}>
         <View>
           <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>
