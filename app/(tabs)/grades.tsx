@@ -57,14 +57,14 @@ export default function GradesScreen() {
             </View>
           </View>
 
-          <View style={styles.predictionBox}>
-            <Zap size={16} color={currentTheme.colors.accent} />
-            <Text style={[styles.predictionExpl, { color: currentTheme.colors.textMuted }]}>
-              {generalAverage > 0 
-                ? `Moyenne générale officielle calculée sur vos évaluations récentes.`
-                : `Connectez-vous à Pronote pour afficher vos vraies notes et moyennes.`}
-            </Text>
-          </View>
+          {generalAverage === 0 && (
+            <View style={styles.predictionBox}>
+              <Zap size={16} color={currentTheme.colors.accent} />
+              <Text style={[styles.predictionExpl, { color: currentTheme.colors.textMuted }]}>
+                Connectez-vous à Pronote pour afficher vos vraies notes et moyennes.
+              </Text>
+            </View>
+          )}
         </GlassCard>
 
         {/* Points Forts & Faibles (Widget Performance) */}
