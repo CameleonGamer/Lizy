@@ -24,6 +24,7 @@ import { SUPPORTED_ENTS, ENTDefinition } from '@/core/pronote/constants';
 import { SchoolEstablishment } from '@/core/pronote/schools';
 import { SchoolFinderModal } from '@/components/auth/SchoolFinderModal';
 import { EntWebViewModal } from '@/components/auth/EntWebViewModal';
+import { QrCodeScannerModal } from '@/components/auth/QrCodeScannerModal';
 import { PronoteBadCredentialsError, PronoteMaintenanceError, PronoteNetworkError } from '@/core/pronote/errors';
 import { 
   ShieldCheck, 
@@ -37,7 +38,8 @@ import {
   X,
   ExternalLink,
   MapPin,
-  Building2 
+  Building2,
+  QrCode 
 } from 'lucide-react-native';
 
 export default function LoginScreen() {
@@ -60,6 +62,7 @@ export default function LoginScreen() {
   const [entModalVisible, setEntModalVisible] = useState(false);
   const [schoolFinderVisible, setSchoolFinderVisible] = useState(false);
   const [webViewModalVisible, setWebViewModalVisible] = useState(false);
+  const [qrScannerVisible, setQrScannerVisible] = useState(false);
 
   const isDirectPronote = selectedEnt.id === 'none';
 
@@ -184,6 +187,38 @@ export default function LoginScreen() {
               </View>
             </GlassCard>
           </TouchableOpacity>
+
+          {/* QR Code Quick Connect Banner (Recommended - Official Mobile Protocol) */}
+          <TouchableOpacity activeOpacity={0.85} onPress={() => setQrScannerVisible(true)}>
+            <GlassCard style={{ ...styles.qrHeroCard, borderColor: currentTheme.colors.primary }}>
+              <View style={styles.qrHeroRow}>
+                <View style={[styles.qrIconCircle, { backgroundColor: currentTheme.colors.primary }]}>
+                  <QrCode size={24} color="#FFFFFF" />
+                </View>
+                <View style={styles.qrTextCol}>
+                  <View style={styles.qrTitleRow}>
+                    <Text style={[styles.qrTitle, { color: currentTheme.colors.text }]}>
+                      Connexion par QR Code
+                    </Text>
+                    <View style={styles.recommendedBadge}>
+                      <Text style={styles.recommendedText}>Recommandé</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.qrSubtitle, { color: currentTheme.colors.textMuted }]}>
+                    Protocole mobile officiel • Affiche 100% de vos vraies notes et devoirs sans mot de passe ENT
+                  </Text>
+                </View>
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
+
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: currentTheme.colors.borderGlass }]} />
+            <Text style={[styles.dividerText, { color: currentTheme.colors.textMuted }]}>
+              OU VIA ÉDUCONNECT / ENT
+            </Text>
+            <View style={[styles.dividerLine, { backgroundColor: currentTheme.colors.borderGlass }]} />
+          </View>
 
           {/* Login Card */}
           <GlassCard style={styles.card}>
@@ -378,6 +413,16 @@ export default function LoginScreen() {
           router.replace('/(tabs)');
         }}
       />
+
+      {/* Official Pronote Mobile QR Code Scanner */}
+      <QrCodeScannerModal
+        visible={qrScannerVisible}
+        onClose={() => setQrScannerVisible(false)}
+        onSuccess={() => {
+          setQrScannerVisible(false);
+          router.replace('/(tabs)');
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -464,6 +509,66 @@ const styles = StyleSheet.create({
   changePillText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  qrHeroCard: {
+    marginBottom: 0,
+    padding: 16,
+    borderWidth: 1.5,
+  },
+  qrHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  qrIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrTextCol: {
+    flex: 1,
+  },
+  qrTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  qrTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  recommendedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  recommendedText: {
+    color: '#10B981',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  qrSubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginVertical: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   card: {
     padding: 18,
