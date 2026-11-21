@@ -1,3 +1,11 @@
+/**
+ * Pronote protocol cryptographic helpers
+ *
+ * Sources & References:
+ * - bain3/pronotepy: https://github.com/bain3/pronotepy
+ * - delphiki/hass-pronote: https://github.com/delphiki/hass-pronote
+ */
+
 import * as Crypto from 'expo-crypto';
 
 /**

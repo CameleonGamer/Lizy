@@ -1,3 +1,12 @@
+/**
+ * Pronote Mobile RPC Client & Cryptographic Handshake
+ *
+ * Sources & References:
+ * - delphiki/hass-pronote: https://github.com/delphiki/hass-pronote
+ * - bain3/pronotepy: https://github.com/bain3/pronotepy
+ * - Index Education Pronote Protocol (QR Code Mobile Handshake)
+ */
+
 import CryptoJS from 'crypto-js';
 import * as Crypto from 'expo-crypto';
 import pako from 'pako';

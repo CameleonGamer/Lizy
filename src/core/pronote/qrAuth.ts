@@ -1,3 +1,11 @@
+/**
+ * Pronote Mobile QR Code Authentication & Decryption
+ *
+ * Sources & References:
+ * - bain3/pronotepy: https://github.com/bain3/pronotepy (QR Code payload structure & AES key derivation)
+ * - delphiki/hass-pronote: https://github.com/delphiki/hass-pronote
+ */
+
 import { PronoteClient, PronoteQrPayload } from './pronoteClient';
 import { Grade, Homework, TimetableLesson, SubjectAverage, PronoteUser } from '@/types';
 
