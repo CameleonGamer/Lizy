@@ -12,8 +12,8 @@ export default function AuthLayout() {
         contentStyle: { backgroundColor: currentTheme.colors.background },
       }}
     >
-      <Stack.Screen name="onboarding" />
       <Stack.Screen name="login" />
+      <Stack.Screen name="onboarding" />
     </Stack>
   );
 }

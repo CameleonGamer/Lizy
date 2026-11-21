@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useGamingStore, INITIAL_BADGES } from '@/stores/useGamingStore';
@@ -37,7 +38,8 @@ import {
   Key,
   Shield,
   Smartphone,
-  X
+  X,
+  LogOut
 } from 'lucide-react-native';
 
 const THEME_OPTIONS: { name: ThemePresetName; color: string; desc: string }[] = [
@@ -134,6 +136,24 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vous déconnecter de votre session Pronote ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Déconnexion', 
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          }
+        },
+      ]
+    );
+  };
+
   const handleWipeData = () => {
     Alert.alert(
       'Effacer toutes les données',
@@ -145,6 +165,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await logout();
+            router.replace('/(auth)/login');
             Alert.alert('Données effacées', 'Toutes les données ont été détruites.');
           }
         },
@@ -409,6 +430,16 @@ export default function ProfileScreen() {
           <Text style={[styles.privacyDesc, { color: currentTheme.colors.textMuted }]}>
             Lizy ne dispose d'aucun serveur distant, aucun tracker et aucun système d'analyse. Toutes vos notes, moyennes et devoirs sont stockés exclusivement sur la puce chiffrée de ce téléphone.
           </Text>
+
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={[styles.logoutButton, { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}
+          >
+            <LogOut size={16} color="#EF4444" />
+            <Text style={[styles.logoutText, { color: '#EF4444' }]}>
+              Se déconnecter / Changer de compte
+            </Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handleWipeData}
@@ -745,6 +776,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginBottom: 14,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  logoutText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   wipeButton: {
     flexDirection: 'row',

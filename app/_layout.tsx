@@ -1,13 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, AppState, AppStateStatus } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useGamingStore } from '@/stores/useGamingStore';
 import { useSecurityStore } from '@/stores/useSecurityStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { AppLockModal } from '@/components/security/AppLockModal';
+
+function AuthNavigationGuard() {
+  const { isAuthenticated } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, segments]);
+
+  return null;
+}
 
 export default function RootLayout() {
   const { currentTheme } = useThemeStore();
@@ -47,9 +66,12 @@ export default function RootLayout() {
               animation: 'fade',
             }}
           >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           </Stack>
+
+          {/* Automatic Auth Router Guard */}
+          <AuthNavigationGuard />
 
           {/* Hardware Security Lock & Multi-tasking Privacy Shield */}
           <AppLockModal isBackgrounded={isBackgrounded} />

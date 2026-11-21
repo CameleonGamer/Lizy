@@ -8,6 +8,7 @@ import {
   Platform 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useWidgetStore } from '@/stores/useWidgetStore';
 import { useGamingStore } from '@/stores/useGamingStore';
@@ -27,7 +28,8 @@ import {
   CheckCircle2,
   Calendar,
   Target,
-  BarChart2
+  BarChart2,
+  LogIn
 } from 'lucide-react-native';
 
 const LAYOUT_PRESETS: { label: string; value: LayoutPreset }[] = [
@@ -106,6 +108,23 @@ export default function DashboardScreen() {
             </View>
           </View>
         </View>
+
+        {/* Demo / Unauthenticated Alert Banner */}
+        {(user?.id === 'demo-student' || !user) && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/(auth)/login')}
+            style={[
+              styles.demoAlertBanner,
+              { backgroundColor: 'rgba(99, 102, 241, 0.12)', borderColor: currentTheme.colors.primary }
+            ]}
+          >
+            <LogIn size={16} color={currentTheme.colors.primary} />
+            <Text style={[styles.demoAlertText, { color: currentTheme.colors.text }]}>
+              Mode Démo actif • <Text style={{ color: currentTheme.colors.primary, fontWeight: '700' }}>Se connecter avec son vrai compte</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Layout Selector Chips */}
         <View style={styles.layoutSelectorContainer}>
@@ -521,5 +540,19 @@ const styles = StyleSheet.create({
     color: '#38BDF8',
     fontSize: 10,
     fontWeight: '700',
+  },
+  demoAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  demoAlertText: {
+    fontSize: 13,
+    flex: 1,
   },
 });
