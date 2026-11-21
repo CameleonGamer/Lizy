@@ -300,7 +300,7 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                   {isAuthenticating ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.connectBtnText}>Se Connecter & Afficher Mes Vraies Notes</Text>
+                    <Text style={styles.connectBtnText}>Se connecter</Text>
                   )}
                 </TouchableOpacity>
 
