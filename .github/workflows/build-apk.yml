@@ -9,10 +9,15 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: android-beta-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build & Release Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: 📥 Checkout repository
@@ -21,41 +26,68 @@ jobs:
       - name: ☕ Setup Java (JDK 17)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
 
       - name: 📦 Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --prefer-offline
 
-      - name: 🛠️ Prebuild native Android project (CNG)
-        run: npx expo prebuild --platform android --clean
+      - name: 🛠️ Generate Android project
+        run: npx expo prebuild --platform android --clean --no-install
 
-      - name: 🔑 Configure signing config for standalone APK
+      - name: 🔑 Configure signing
         run: |
-          sed -i -e 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' android/app/build.gradle || true
+          sed -i \
+            's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' \
+            android/app/build.gradle || true
 
-      - name: 🐘 Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: 🐘 Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-cleanup: on-success
 
-      - name: 🔨 Compile Android APK (Release)
+      - name: ⚡ Configure Gradle
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.caching=true
+          org.gradle.parallel=true
+          org.gradle.daemon=true
+          org.gradle.configureondemand=true
+          EOF
 
-      - name: 📋 Locate and Rename APK
+      - name: 🔨 Build optimized APK
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease \
+            --build-cache \
+            --parallel \
+            --daemon \
+            --max-workers=2
+
+      - name: 📋 Prepare APK
         run: |
           mkdir -p build-output
-          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
-          echo "Found APK at: $APK_PATH"
+
+          APK_PATH=$(find android/app/build/outputs/apk \
+            -type f -name "*.apk" | head -n 1)
+
+          if [ -z "$APK_PATH" ]; then
+            echo "APK not found!"
+            exit 1
+          fi
+
           cp "$APK_PATH" build-output/Lizy-Beta.apk
           ls -lh build-output/Lizy-Beta.apk
 
-      - name: 🚀 Publish Beta Release on GitHub
+      - name: 🚀 Publish Beta Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
@@ -64,24 +96,16 @@ jobs:
           prerelease: true
           generate_release_notes: true
           body: |
-            ## 📱 Lizy - Version Bêta Standalone Android (.APK)
-            
-            Cette version préliminaire est compilée directement depuis le code source pour fonctionner en toute autonomie sur n'importe quel smartphone Android, sans passer par Expo Go.
-            
-            ### ✨ Nouveautés & Correctifs de cette Beta :
-            * 🔒 **100% Zero-Trust & Local :** Chiffrement matériel local des identifiants et données de session.
-            * 📲 **Connexion directe QR Code Pronote :** Rétro-ingénierie conforme du protocole mobile Index Éducation.
-            * 📊 **Notes & Moyenne Générale :** Calcul automatique et résolution de la période active.
-            * 📅 **Emploi du Temps Dynamique :** Cours réels ordonnés chronologiquement avec matières, professeurs et salles (`ListeContenus`).
-            * 📝 **Devoirs Assainis :** Suppression des balises HTML parasites (`<div>`, etc.).
-            * 🛡️ **Code PIN & Bouclier Multitâche :** Protection anti-regards indiscrets.
-            * 💎 **Véritable Apple Liquid Glass :** Réfraction et dispersion chromatique inspirées de `QWEA0/Liquid-Glass-Android`.
-            * 📱 **Barre de Navigation :** Marges sécurisées respectant les boutons système Android.
-            
-            ### 📥 Installation :
-            1. Téléchargez le fichier **`Lizy-Beta.apk`** ci-dessous sur votre smartphone Android.
-            2. Ouvrez le fichier et autorisez l'installation depuis cette source si demandé.
-            3. Lancez Lizy et connectez-vous par QR Code ou via ÉduConnect !
+            ## 📱 Lizy - Android Beta
+
+            Version standalone Android compilée depuis le code source.
+
+            ### Installation
+            1. Téléchargez Lizy-Beta.apk.
+            2. Ouvrez le fichier sur Android.
+            3. Autorisez l'installation si nécessaire.
+            4. Lancez Lizy !
+
           files: build-output/Lizy-Beta.apk
 
       - name: 📤 Upload Artifact
@@ -89,3 +113,5 @@ jobs:
         with:
           name: Lizy-Beta-APK
           path: build-output/Lizy-Beta.apk
+          compression-level: 0
+          retention-days: 14
