@@ -13,6 +13,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
 import { SchoolDirectory, SchoolEstablishment } from '@/core/pronote/schools';
 import { 
   MapPin, 
@@ -118,7 +119,7 @@ export const SchoolFinderModal: React.FC<SchoolFinderModalProps> = ({
           </View>
 
           {/* GPS Quick Action */}
-          <TouchableOpacity
+          <GlassButton variant="tinted" tint={currentTheme.colors.primary}
             onPress={handleDetectLocation}
             disabled={isLocating}
             style={[styles.gpsButton, { borderColor: currentTheme.colors.primary, backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}
@@ -131,7 +132,7 @@ export const SchoolFinderModal: React.FC<SchoolFinderModalProps> = ({
             <Text style={[styles.gpsText, { color: currentTheme.colors.primary }]}>
               {isLocating ? 'Géolocalisation en cours...' : 'Détecter les établissements autour de moi (GPS)'}
             </Text>
-          </TouchableOpacity>
+          </GlassButton>
         </View>
 
         {/* Results list */}

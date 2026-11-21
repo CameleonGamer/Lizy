@@ -12,6 +12,7 @@ import {
 import { WebView } from 'react-native-webview';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { SecureStorage } from '@/core/security/secureStorage';
@@ -240,13 +241,13 @@ export const EntWebViewModal: React.FC<EntWebViewModalProps> = ({
 
           <View style={styles.rightActions}>
             {canSyncNow ? (
-              <TouchableOpacity
+              <GlassButton
                 onPress={forceSync}
                 style={[styles.syncBtn, { backgroundColor: currentTheme.colors.primary }]}
               >
                 <CheckCircle2 size={14} color="#FFFFFF" />
                 <Text style={styles.syncBtnText}>Valider</Text>
-              </TouchableOpacity>
+              </GlassButton>
             ) : (
               <TouchableOpacity onPress={reloadPage} style={styles.reloadBtn}>
                 <RefreshCw size={18} color={currentTheme.colors.textMuted} />

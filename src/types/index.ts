@@ -2,7 +2,8 @@
 // LIZY TYPES DEFINITIONS
 // ==========================================
 
-export type ThemePresetName = 
+export type ThemePresetName =
+  | 'Jungle'
   | 'Midnight'
   | 'Ocean'
   | 'Sakura'
@@ -33,6 +34,23 @@ export interface AppTheme {
   colors: ThemeColors;
   glassBlurIntensity: number;
   borderRadius: number;
+}
+
+/**
+ * User-tunable appearance settings (persisted on device).
+ */
+export interface AppearanceSettings {
+  presetName: ThemePresetName;
+  /** Overrides the preset background colour when set. */
+  customBackground: string | null;
+  /** Main colour of the jungle foliage. */
+  leafColor: string;
+  /** Colour of the hanging vines (lianes). */
+  vineColor: string;
+  /** Show leaves & vines decorations. */
+  jungleDecorEnabled: boolean;
+  /** Liquid Glass buttons / bars. When off, controls become solid. */
+  liquidGlassEnabled: boolean;
 }
 
 // ------------------------------------------

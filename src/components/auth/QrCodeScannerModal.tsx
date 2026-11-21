@@ -17,6 +17,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { SecureStorage } from '@/core/security/secureStorage';
@@ -218,12 +219,12 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                       <Text style={[styles.permissionText, { color: currentTheme.colors.text }]}>
                         Autorisation requise pour scanner le QR Code
                       </Text>
-                      <TouchableOpacity
+                      <GlassButton
                         onPress={requestPermission}
                         style={[styles.grantBtn, { backgroundColor: currentTheme.colors.primary }]}
                       >
                         <Text style={styles.grantBtnText}>Autoriser la Caméra</Text>
-                      </TouchableOpacity>
+                      </GlassButton>
                     </View>
                   ) : (
                     <View style={styles.cameraWrapper}>
@@ -253,12 +254,12 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
-                  <TouchableOpacity
+                  <GlassButton
                     onPress={handleManualParse}
                     style={[styles.parseBtn, { backgroundColor: currentTheme.colors.primary }]}
                   >
                     <Text style={styles.parseBtnText}>Valider le QR Code</Text>
-                  </TouchableOpacity>
+                  </GlassButton>
                 </GlassCard>
               )
             ) : (
@@ -292,7 +293,7 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                   </View>
                 </View>
 
-                <TouchableOpacity
+                <GlassButton
                   onPress={handleConnectWithPin}
                   disabled={isAuthenticating}
                   style={[styles.connectBtn, { backgroundColor: currentTheme.colors.primary }]}
@@ -302,7 +303,7 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                   ) : (
                     <Text style={styles.connectBtnText}>Se connecter</Text>
                   )}
-                </TouchableOpacity>
+                </GlassButton>
 
                 <TouchableOpacity onPress={resetAll} style={styles.rescanBtn}>
                   <Text style={[styles.rescanText, { color: currentTheme.colors.textMuted }]}>

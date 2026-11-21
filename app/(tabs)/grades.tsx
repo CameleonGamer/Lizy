@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { JungleBackground } from '@/components/jungle/JungleBackground';
 import { useDataStore } from '@/stores/useDataStore';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { KiviatRadarChart } from '@/components/charts/KiviatRadarChart';
@@ -27,6 +28,7 @@ export default function GradesScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+      <JungleBackground />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -37,7 +39,7 @@ export default function GradesScreen() {
         </View>
 
         {/* General Average & Prediction Card */}
-        <GlassCard style={styles.heroCard}>
+        <GlassCard style={styles.heroCard} foliage="frame">
           <View style={styles.heroTop}>
             <View>
               <Text style={[styles.heroLabel, { color: currentTheme.colors.textMuted }]}>

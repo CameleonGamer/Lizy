@@ -2,6 +2,8 @@ import React from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import { GlassView } from 'expo-glass-effect';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Home, 
@@ -12,9 +14,12 @@ import {
   Trophy 
 } from 'lucide-react-native';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { useGlassMode } from '@/components/glass/glassMode';
+import { withAlpha } from '@/core/theme/color';
 
 export default function TabsLayout() {
-  const { currentTheme } = useThemeStore();
+  const { currentTheme, leafColor } = useThemeStore();
+  const glassMode = useGlassMode();
   const insets = useSafeAreaInsets();
 
   // Ensure bottom bar never collides with Android 3-button navigation or iOS home indicator
@@ -35,20 +40,43 @@ export default function TabsLayout() {
           right: 0,
           bottom: 0,
           borderTopWidth: 1,
-          backgroundColor: currentTheme.colors.surfaceGlass,
-          borderTopColor: currentTheme.colors.borderGlass,
+          backgroundColor:
+            glassMode === 'solid'
+              ? currentTheme.colors.surface
+              : glassMode === 'native'
+                ? 'transparent'
+                : currentTheme.colors.surfaceGlass,
+          borderTopColor: glassMode === 'native' ? 'transparent' : currentTheme.colors.borderGlass,
           height: barHeight,
           paddingBottom: bottomPadding,
           paddingTop: 6,
-          elevation: 12,
+          elevation: glassMode === 'native' ? 0 : 12,
         },
-        tabBarBackground: () => (
-          <BlurView
-            tint="dark"
-            intensity={45}
-            style={StyleSheet.absoluteFill}
-          />
-        ),
+        tabBarBackground: () => {
+          if (glassMode === 'solid') return null;
+          if (glassMode === 'native') {
+            // Real iOS 26 Liquid Glass, lightly tinted with the foliage colour.
+            return (
+              <GlassView
+                glassEffectStyle="regular"
+                tintColor={withAlpha(leafColor, 0.12)}
+                colorScheme="dark"
+                style={StyleSheet.absoluteFill}
+              />
+            );
+          }
+          return (
+            <View style={StyleSheet.absoluteFill}>
+              <BlurView tint="dark" intensity={45} style={StyleSheet.absoluteFill} />
+              <LinearGradient
+                colors={['rgba(255,255,255,0.10)', 'transparent']}
+                locations={[0, 0.5]}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+            </View>
+          );
+        },
       }}
     >
       <Tabs.Screen

@@ -4,7 +4,6 @@ import {
   View, 
   Text, 
   Modal, 
-  TouchableOpacity, 
   Dimensions 
 } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -12,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGamingStore } from '@/stores/useGamingStore';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { Trophy, Sparkles, Zap, ArrowRight, Check } from 'lucide-react-native';
 
@@ -35,7 +35,7 @@ export const LevelUpModal: React.FC = () => {
       <View style={styles.overlay}>
         <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
 
-        <GlassCard style={styles.card} glowColor={currentTheme.colors.primary}>
+        <GlassCard style={styles.card} glowColor={currentTheme.colors.primary} foliage="frame">
           {/* Glowing Top Trophy Halo */}
           <View style={styles.iconHaloWrapper}>
             <LinearGradient
@@ -89,14 +89,13 @@ export const LevelUpModal: React.FC = () => {
           </View>
 
           {/* Continue Action */}
-          <TouchableOpacity
-            activeOpacity={0.85}
+          <GlassButton
             onPress={handleContinue}
             style={[styles.continueButton, { backgroundColor: currentTheme.colors.primary }]}
           >
             <Text style={styles.continueButtonText}>Continuer</Text>
             <ArrowRight size={18} color="#FFFFFF" />
-          </TouchableOpacity>
+          </GlassButton>
 
           <Text style={[styles.footnote, { color: currentTheme.colors.textMuted }]}>
             Cette animation peut être désactivée dans Profil › Paramètres

@@ -11,6 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
+import { JungleBackground } from '@/components/jungle/JungleBackground';
 import { useWidgetStore } from '@/stores/useWidgetStore';
 import { useGamingStore } from '@/stores/useGamingStore';
 import { useDataStore } from '@/stores/useDataStore';
@@ -75,6 +77,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+      <JungleBackground />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -97,12 +100,12 @@ export default function DashboardScreen() {
 
           {/* Action Pills */}
           <View style={styles.headerPills}>
-            <TouchableOpacity
+            <GlassButton variant="clear"
               onPress={() => setEditorModalVisible(true)}
               style={[styles.editorPill, { backgroundColor: currentTheme.colors.surfaceGlass, borderColor: currentTheme.colors.borderGlass }]}
             >
               <SlidersHorizontal size={14} color={currentTheme.colors.primary} />
-            </TouchableOpacity>
+            </GlassButton>
 
             <View style={[styles.streakPill, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
               <Flame size={16} color="#F59E0B" />
@@ -168,7 +171,7 @@ export default function DashboardScreen() {
         <View style={styles.grid}>
           {/* Quick Focus Mode Trigger Banner */}
           <TouchableOpacity activeOpacity={0.9} onPress={() => setFocusModalVisible(true)}>
-            <GlassCard style={styles.focusBanner}>
+            <GlassCard style={styles.focusBanner} foliage="frame">
               <View style={styles.focusBannerContent}>
                 <View style={[styles.focusIconCircle, { backgroundColor: currentTheme.colors.primary }]}>
                   <Target size={22} color="#FFFFFF" />

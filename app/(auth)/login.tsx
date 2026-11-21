@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
+import { JungleBackground } from '@/components/jungle/JungleBackground';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { SecureStorage } from '@/core/security/secureStorage';
@@ -144,6 +146,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+      <JungleBackground />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -221,7 +224,7 @@ export default function LoginScreen() {
           </View>
 
           {/* Login Card */}
-          <GlassCard style={styles.card}>
+          <GlassCard style={styles.card} foliage="frame">
             {/* ENT Selector Dropdown */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: currentTheme.colors.textMuted }]}>
@@ -264,13 +267,13 @@ export default function LoginScreen() {
                   Connexion officielle via <Text style={{ color: currentTheme.colors.text, fontWeight: '700' }}>{selectedEnt.name}</Text>. La page d'authentification de votre académie s'ouvre pour synchroniser votre compte.
                 </Text>
 
-                <TouchableOpacity
+                <GlassButton
                   onPress={handleOpenEntBrowser}
                   style={[styles.entLaunchButton, { backgroundColor: currentTheme.colors.primary }]}
                 >
                   <ExternalLink size={18} color="#FFFFFF" />
                   <Text style={styles.loginButtonText}>Se Connecter via {selectedEnt.name}</Text>
-                </TouchableOpacity>
+                </GlassButton>
               </View>
             ) : (
               <>
@@ -311,7 +314,7 @@ export default function LoginScreen() {
                   </View>
                 </View>
 
-                <TouchableOpacity
+                <GlassButton
                   onPress={handleLoginDirect}
                   disabled={isLoading}
                   style={[styles.loginButton, { backgroundColor: currentTheme.colors.primary }]}
@@ -324,7 +327,7 @@ export default function LoginScreen() {
                       <ArrowRight size={18} color="#FFFFFF" />
                     </>
                   )}
-                </TouchableOpacity>
+                </GlassButton>
               </>
             )}
           </GlassCard>
@@ -357,7 +360,7 @@ export default function LoginScreen() {
       {/* ENT Selection Modal */}
       <Modal visible={entModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <GlassCard style={styles.modalCard}>
+          <GlassCard style={styles.modalCard} foliage="vine">
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: currentTheme.colors.text }]}>
                 Choisir votre ENT

@@ -1,6 +1,28 @@
 import { AppTheme, ThemePresetName } from '@/types';
 
 export const THEME_PRESETS: Record<ThemePresetName, AppTheme> = {
+  Jungle: {
+    id: 'preset-jungle',
+    name: 'Jungle',
+    preset: 'Jungle',
+    glassBlurIntensity: 32,
+    borderRadius: 24,
+    colors: {
+      primary: '#5DBB46', // Fresh leaf green
+      secondary: '#2F8F46', // Deep canopy
+      accent: '#F2C94C', // Sun-ray gold
+      background: '#07170F', // Jungle night floor
+      surface: '#11281B',
+      surfaceGlass: 'rgba(17, 40, 27, 0.66)',
+      border: 'rgba(134, 239, 172, 0.12)',
+      borderGlass: 'rgba(187, 247, 208, 0.22)',
+      text: '#F0FDF4',
+      textMuted: '#A7C4AE',
+      success: '#4ADE80',
+      warning: '#F59E0B',
+      danger: '#EF4444',
+    },
+  },
   Midnight: {
     id: 'preset-midnight',
     name: 'Midnight',

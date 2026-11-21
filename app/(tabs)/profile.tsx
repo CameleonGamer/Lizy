@@ -16,11 +16,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
+import { JungleBackground } from '@/components/jungle/JungleBackground';
 import { useGamingStore, INITIAL_BADGES } from '@/stores/useGamingStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSecurityStore } from '@/stores/useSecurityStore';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { THEME_PRESETS } from '@/core/theme/presets';
+import { isNativeLiquidGlassAvailable } from '@/components/glass/glassMode';
+import { ColorPicker } from '@/components/settings/ColorPicker';
+import { DEFAULT_APPEARANCE } from '@/stores/useThemeStore';
 import { ThemePresetName } from '@/types';
 import { 
   Trophy, 
@@ -39,10 +44,14 @@ import {
   Shield,
   Smartphone,
   X,
-  LogOut
+  LogOut,
+  Leaf,
+  Droplets,
+  RotateCcw
 } from 'lucide-react-native';
 
 const THEME_OPTIONS: { name: ThemePresetName; color: string; desc: string }[] = [
+  { name: 'Jungle', color: '#5DBB46', desc: 'Feuillages, Lianes & Lumière Dorée' },
   { name: 'Midnight', color: '#6366F1', desc: 'Espace Profond & Indigo' },
   { name: 'Ocean', color: '#0EA5E9', desc: 'Abysses & Cyan Électrique' },
   { name: 'Sakura', color: '#F43F5E', desc: 'Fleurs de Cerisier & Rose' },
@@ -51,8 +60,27 @@ const THEME_OPTIONS: { name: ThemePresetName; color: string; desc: string }[] = 
   { name: 'Minimal', color: '#E4E4E7', desc: 'Monochrome Pur' },
 ];
 
+const LEAF_SWATCHES = ['#3E9B4F', '#5DBB46', '#2F7D32', '#86C232', '#1F6F5C', '#4FB0A5', '#B5C335', '#C2703D', '#C93F5B', '#8E6CC9'];
+const VINE_SWATCHES = ['#6B5232', '#8A6B3D', '#4E3B24', '#5E7A3A', '#3E5C34', '#9C8A6A'];
+const BACKGROUND_SWATCHES = ['#07170F', '#0B1F14', '#0E1A12', '#101C1F', '#1A1A12', '#1B1410', '#12101C', '#0A0F0D', '#16201A'];
+
 export default function ProfileScreen() {
-  const { currentTheme, setPreset } = useThemeStore();
+  const {
+    currentTheme,
+    setPreset,
+    leafColor,
+    vineColor,
+    customBackground,
+    jungleDecorEnabled,
+    liquidGlassEnabled,
+    setLeafColor,
+    setVineColor,
+    setCustomBackground,
+    setJungleDecorEnabled,
+    setLiquidGlassEnabled,
+    resetAppearance,
+  } = useThemeStore();
+  const nativeGlass = isNativeLiquidGlassAvailable();
   const { 
     xp, 
     level, 
@@ -183,6 +211,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+      <JungleBackground />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -193,7 +222,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Level & XP Card */}
-        <GlassCard style={styles.profileHeroCard}>
+        <GlassCard style={styles.profileHeroCard} foliage="frame">
           <View style={styles.avatarRow}>
             <View style={[styles.avatarCircle, { backgroundColor: currentTheme.colors.primary }]}>
               <Trophy size={32} color="#FFFFFF" />
@@ -263,12 +292,12 @@ export default function ProfileScreen() {
             Booste ta concentration en éliminant les distractions. 25 minutes de travail intense.
           </Text>
 
-          <TouchableOpacity
+          <GlassButton
             onPress={handleCompleteFocusSession}
             style={[styles.focusButton, { backgroundColor: currentTheme.colors.primary }]}
           >
             <Text style={styles.focusButtonText}>Démarrer / Valider Focus (25 min)</Text>
-          </TouchableOpacity>
+          </GlassButton>
         </GlassCard>
 
         {/* Badges & Achievements */}
@@ -329,7 +358,7 @@ export default function ProfileScreen() {
           <View style={styles.themeHeaderRow}>
             <Palette size={20} color={currentTheme.colors.primary} />
             <Text style={[styles.sectionTitle, { color: currentTheme.colors.text }]}>
-              Thèmes & Apple Glass
+              Thèmes
             </Text>
           </View>
 
@@ -364,6 +393,102 @@ export default function ProfileScreen() {
               );
             })}
           </View>
+        </GlassCard>
+
+        {/* Jungle appearance & Liquid Glass */}
+        <GlassCard style={styles.sectionCard} foliage="vine">
+          <View style={styles.themeHeaderRow}>
+            <Leaf size={20} color={leafColor} />
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text }]}>
+              Apparence Jungle
+            </Text>
+          </View>
+
+          {/* Liquid Glass toggle */}
+          <View style={[styles.secSettingRow, { borderColor: currentTheme.colors.borderGlass }]}>
+            <View style={styles.secSettingLeft}>
+              <Droplets size={18} color={liquidGlassEnabled ? currentTheme.colors.accent : currentTheme.colors.textMuted} />
+              <View style={styles.secSettingTexts}>
+                <Text style={[styles.secSettingTitle, { color: currentTheme.colors.text }]}>
+                  Liquid Glass
+                </Text>
+                <Text style={[styles.secSettingSub, { color: currentTheme.colors.textMuted }]}>
+                  {!liquidGlassEnabled
+                    ? 'Désactivé • Boutons et barres pleins, sans transparence'
+                    : nativeGlass
+                      ? 'Activé • Verre liquide natif iOS'
+                      : 'Activé • Verre liquide simulé (natif sur iOS 26+)'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={liquidGlassEnabled}
+              onValueChange={setLiquidGlassEnabled}
+              trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentTheme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* Jungle decor toggle */}
+          <View style={[styles.secSettingRow, { borderColor: currentTheme.colors.borderGlass }]}>
+            <View style={styles.secSettingLeft}>
+              <Leaf size={18} color={jungleDecorEnabled ? leafColor : currentTheme.colors.textMuted} />
+              <View style={styles.secSettingTexts}>
+                <Text style={[styles.secSettingTitle, { color: currentTheme.colors.text }]}>
+                  Feuilles & lianes
+                </Text>
+                <Text style={[styles.secSettingSub, { color: currentTheme.colors.textMuted }]}>
+                  {jungleDecorEnabled ? 'Affichées autour des écrans et des cartes' : 'Masquées • Interface épurée'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={jungleDecorEnabled}
+              onValueChange={setJungleDecorEnabled}
+              trackColor={{ false: 'rgba(255,255,255,0.1)', true: leafColor }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <ColorPicker
+            label="Couleur des feuilles"
+            value={leafColor}
+            swatches={LEAF_SWATCHES}
+            onChange={setLeafColor}
+          />
+          <ColorPicker
+            label="Couleur des lianes"
+            value={vineColor}
+            swatches={VINE_SWATCHES}
+            onChange={setVineColor}
+          />
+          <ColorPicker
+            label="Couleur du fond"
+            description={customBackground ? 'Personnalisée' : 'Celle du thème'}
+            value={currentTheme.colors.background}
+            swatches={BACKGROUND_SWATCHES}
+            onChange={setCustomBackground}
+            onReset={() => setCustomBackground(null)}
+            isDefault={!customBackground}
+          />
+
+          <GlassButton
+            variant="clear"
+            onPress={resetAppearance}
+            disabled={
+              leafColor === DEFAULT_APPEARANCE.leafColor &&
+              vineColor === DEFAULT_APPEARANCE.vineColor &&
+              !customBackground &&
+              jungleDecorEnabled &&
+              liquidGlassEnabled
+            }
+            style={styles.resetAppearanceBtn}
+          >
+            <RotateCcw size={16} color={currentTheme.colors.text} />
+            <Text style={[styles.resetAppearanceText, { color: currentTheme.colors.text }]}>
+              Réinitialiser l'apparence
+            </Text>
+          </GlassButton>
         </GlassCard>
 
         {/* Gamification & Animations Settings */}
@@ -472,7 +597,7 @@ export default function ProfileScreen() {
             Lizy ne dispose d'aucun serveur distant, aucun tracker et aucun système d'analyse. Toutes vos notes, moyennes et devoirs sont stockés exclusivement sur la puce chiffrée de ce téléphone.
           </Text>
 
-          <TouchableOpacity
+          <GlassButton variant="tinted" tint="#EF4444"
             onPress={handleLogout}
             style={[styles.logoutButton, { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}
           >
@@ -480,9 +605,9 @@ export default function ProfileScreen() {
             <Text style={[styles.logoutText, { color: '#EF4444' }]}>
               Se déconnecter / Changer de compte
             </Text>
-          </TouchableOpacity>
+          </GlassButton>
 
-          <TouchableOpacity
+          <GlassButton variant="tinted" tint={currentTheme.colors.danger}
             onPress={handleWipeData}
             style={[styles.wipeButton, { borderColor: currentTheme.colors.danger }]}
           >
@@ -490,7 +615,7 @@ export default function ProfileScreen() {
             <Text style={[styles.wipeText, { color: currentTheme.colors.danger }]}>
               Détruire toutes les données locales
             </Text>
-          </TouchableOpacity>
+          </GlassButton>
         </GlassCard>
 
         {/* Modal Setup New PIN */}
@@ -499,7 +624,7 @@ export default function ProfileScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
             style={styles.modalOverlay}
           >
-            <GlassCard style={styles.modalCard}>
+            <GlassCard style={styles.modalCard} foliage="vine">
               <View style={styles.modalHeader}>
                 <View style={styles.modalHeaderLeft}>
                   <Lock size={20} color={currentTheme.colors.primary} />
@@ -538,12 +663,12 @@ export default function ProfileScreen() {
                 onChangeText={setConfirmPin}
               />
 
-              <TouchableOpacity
+              <GlassButton
                 onPress={handleSaveNewPin}
                 style={[styles.pinSubmitBtn, { backgroundColor: currentTheme.colors.primary }]}
               >
                 <Text style={styles.pinSubmitText}>Activer la protection</Text>
-              </TouchableOpacity>
+              </GlassButton>
             </GlassCard>
           </KeyboardAvoidingView>
         </Modal>
@@ -554,7 +679,7 @@ export default function ProfileScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
             style={styles.modalOverlay}
           >
-            <GlassCard style={styles.modalCard}>
+            <GlassCard style={styles.modalCard} foliage="vine">
               <View style={styles.modalHeader}>
                 <View style={styles.modalHeaderLeft}>
                   <Lock size={20} color={currentTheme.colors.danger} />
@@ -582,12 +707,12 @@ export default function ProfileScreen() {
                 onChangeText={setDisablePin}
               />
 
-              <TouchableOpacity
+              <GlassButton
                 onPress={handleConfirmDisablePin}
                 style={[styles.pinSubmitBtn, { backgroundColor: currentTheme.colors.danger }]}
               >
                 <Text style={styles.pinSubmitText}>Désactiver le verrouillage</Text>
-              </TouchableOpacity>
+              </GlassButton>
             </GlassCard>
           </KeyboardAvoidingView>
         </Modal>
@@ -806,6 +931,19 @@ const styles = StyleSheet.create({
   themeDesc: {
     fontSize: 11,
     marginTop: 2,
+  },
+  resetAppearanceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: 14,
+    marginTop: 8,
+  },
+  resetAppearanceText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   privacyHeader: {
     flexDirection: 'row',

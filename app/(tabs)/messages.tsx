@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { JungleBackground } from '@/components/jungle/JungleBackground';
 import { useDataStore } from '@/stores/useDataStore';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { PronoteMessage } from '@/types';
@@ -29,6 +30,7 @@ export default function MessagesScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+      <JungleBackground density="light" />
       <View style={styles.header}>
         <View>
           <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>
@@ -93,7 +95,7 @@ export default function MessagesScreen() {
       {/* Message Reader Modal */}
       <Modal visible={Boolean(selectedMessage)} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <GlassCard style={styles.modalCard}>
+          <GlassCard style={styles.modalCard} foliage="vine">
             <View style={styles.modalHeader}>
               <View style={styles.authorModalHeader}>
                 <User size={18} color={currentTheme.colors.accent} />

@@ -10,6 +10,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
 import { useWidgetStore } from '@/stores/useWidgetStore';
 import { WidgetConfig, WidgetType, WidgetSize } from '@/types';
 import { 
@@ -89,7 +90,7 @@ export const WidgetEditorModal: React.FC<WidgetEditorModalProps> = ({ visible, o
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
-        <GlassCard style={styles.editorCard}>
+        <GlassCard style={styles.editorCard} foliage="vine">
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
@@ -236,26 +237,26 @@ export const WidgetEditorModal: React.FC<WidgetEditorModalProps> = ({ visible, o
                     </Text>
                   </View>
 
-                  <TouchableOpacity
+                  <GlassButton
                     onPress={() => handleAddWidget(cat)}
                     style={[styles.addCatalogBtn, { backgroundColor: currentTheme.colors.primary }]}
                   >
                     <Plus size={16} color="#FFFFFF" />
                     <Text style={styles.addCatalogText}>Ajouter</Text>
-                  </TouchableOpacity>
+                  </GlassButton>
                 </View>
               ))
             )}
           </ScrollView>
 
           {/* Close / Apply button */}
-          <TouchableOpacity
+          <GlassButton
             onPress={onClose}
             style={[styles.applyBtn, { backgroundColor: currentTheme.colors.primary }]}
           >
             <Check size={18} color="#FFFFFF" />
             <Text style={styles.applyBtnText}>Terminer la Personnalisation</Text>
-          </TouchableOpacity>
+          </GlassButton>
         </GlassCard>
       </View>
     </Modal>

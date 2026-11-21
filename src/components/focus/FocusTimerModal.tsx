@@ -10,6 +10,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
 import { useGamingStore } from '@/stores/useGamingStore';
 import { 
   Play, 
@@ -91,7 +92,7 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({ visible, onClo
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
-        <GlassCard style={styles.timerCard}>
+        <GlassCard style={styles.timerCard} foliage="frame">
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={styles.headerTitleRow}>
@@ -135,14 +136,14 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({ visible, onClo
 
           {/* Controls */}
           <View style={styles.controlsRow}>
-            <TouchableOpacity
+            <GlassButton variant="clear"
               onPress={resetTimer}
               style={[styles.secondaryBtn, { borderColor: currentTheme.colors.borderGlass }]}
             >
               <RotateCcw size={20} color={currentTheme.colors.textMuted} />
-            </TouchableOpacity>
+            </GlassButton>
 
-            <TouchableOpacity
+            <GlassButton
               onPress={toggleRunning}
               style={[styles.primaryBtn, { backgroundColor: currentTheme.colors.primary }]}
             >
@@ -151,14 +152,14 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({ visible, onClo
               ) : (
                 <Play size={24} color="#FFFFFF" style={{ marginLeft: 3 }} />
               )}
-            </TouchableOpacity>
+            </GlassButton>
 
-            <TouchableOpacity
+            <GlassButton variant="clear"
               onPress={handleSessionComplete}
               style={[styles.secondaryBtn, { borderColor: currentTheme.colors.borderGlass }]}
             >
               <CheckCircle2 size={20} color={currentTheme.colors.success} />
-            </TouchableOpacity>
+            </GlassButton>
           </View>
 
           {/* Reward Footnote */}

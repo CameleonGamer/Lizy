@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
+import { JungleBackground } from '@/components/jungle/JungleBackground';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { 
   Sparkles, 
@@ -66,6 +68,7 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+      <JungleBackground />
       <View style={styles.container}>
         {/* Top skip */}
         <TouchableOpacity
@@ -77,7 +80,7 @@ export default function OnboardingScreen() {
 
         {/* Central Glass Card Feature */}
         <View style={styles.slideContainer}>
-          <GlassCard style={styles.card}>
+          <GlassCard style={styles.card} foliage="frame">
             <View
               style={[
                 styles.iconContainer,
@@ -125,7 +128,7 @@ export default function OnboardingScreen() {
           </View>
 
           {/* Next Button */}
-          <TouchableOpacity
+          <GlassButton
             onPress={handleNext}
             style={[styles.nextButton, { backgroundColor: currentTheme.colors.primary }]}
           >
@@ -140,7 +143,7 @@ export default function OnboardingScreen() {
                 <ArrowRight size={18} color="#FFFFFF" />
               </>
             )}
-          </TouchableOpacity>
+          </GlassButton>
         </View>
       </View>
     </SafeAreaView>

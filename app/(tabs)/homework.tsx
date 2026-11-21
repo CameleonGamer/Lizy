@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
+import { JungleBackground } from '@/components/jungle/JungleBackground';
 import { useDataStore } from '@/stores/useDataStore';
 import { useGamingStore } from '@/stores/useGamingStore';
 import { GlassCard } from '@/components/glass/GlassCard';
@@ -86,19 +88,20 @@ export default function HomeworkScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+      <JungleBackground density="light" />
       <View style={styles.header}>
         <View>
           <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>GESTION DU TRAVAIL</Text>
           <Text style={[styles.title, { color: currentTheme.colors.text }]}>Devoirs</Text>
         </View>
 
-        <TouchableOpacity
+        <GlassButton
           onPress={() => setModalVisible(true)}
           style={[styles.addButton, { backgroundColor: currentTheme.colors.primary }]}
         >
           <Plus size={18} color="#FFFFFF" />
           <Text style={styles.addButtonText}>Ajouter</Text>
-        </TouchableOpacity>
+        </GlassButton>
       </View>
 
       {/* Filter Tabs */}
@@ -285,7 +288,7 @@ export default function HomeworkScreen() {
       {/* Add Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <GlassCard style={styles.modalCard}>
+          <GlassCard style={styles.modalCard} foliage="vine">
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: currentTheme.colors.text }]}>
                 Nouveau devoir personnel
@@ -328,12 +331,12 @@ export default function HomeworkScreen() {
               ]}
             />
 
-            <TouchableOpacity
+            <GlassButton
               onPress={handleCreatePersonalHomework}
               style={[styles.submitButton, { backgroundColor: currentTheme.colors.primary }]}
             >
               <Text style={styles.submitText}>Enregistrer le devoir</Text>
-            </TouchableOpacity>
+            </GlassButton>
           </GlassCard>
         </View>
       </Modal>

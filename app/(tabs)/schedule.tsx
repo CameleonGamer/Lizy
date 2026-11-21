@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { GlassButton } from '@/components/glass/GlassButton';
+import { JungleBackground } from '@/components/jungle/JungleBackground';
 import { useDataStore } from '@/stores/useDataStore';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { 
@@ -143,6 +145,7 @@ export default function ScheduleScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
+      <JungleBackground density="light" />
       <View style={styles.header}>
         <View>
           <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>
@@ -151,13 +154,13 @@ export default function ScheduleScreen() {
           <Text style={[styles.title, { color: currentTheme.colors.text }]}>Emploi du temps</Text>
         </View>
 
-        <TouchableOpacity
+        <GlassButton
           onPress={() => setModalVisible(true)}
           style={[styles.addButton, { backgroundColor: currentTheme.colors.primary }]}
         >
           <Plus size={18} color="#FFFFFF" />
           <Text style={styles.addButtonText}>Événement</Text>
-        </TouchableOpacity>
+        </GlassButton>
       </View>
 
       {/* Days Bar */}
@@ -271,7 +274,7 @@ export default function ScheduleScreen() {
       {/* Add Custom Event Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <GlassCard style={styles.modalCard}>
+          <GlassCard style={styles.modalCard} foliage="vine">
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: currentTheme.colors.text }]}>
                 Ajouter à l'emploi du temps
@@ -328,12 +331,12 @@ export default function ScheduleScreen() {
               />
             </View>
 
-            <TouchableOpacity
+            <GlassButton
               onPress={handleCreateEvent}
               style={[styles.submitButton, { backgroundColor: currentTheme.colors.primary }]}
             >
               <Text style={styles.submitText}>Ajouter au créneau</Text>
-            </TouchableOpacity>
+            </GlassButton>
           </GlassCard>
         </View>
       </Modal>
