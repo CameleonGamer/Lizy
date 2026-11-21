@@ -15,6 +15,7 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { useGamingStore } from '@/stores/useGamingStore';
 import { GlassCard } from '@/components/glass/GlassCard';
+import { cleanPronoteHtml } from '@/core/utils/htmlSanitizer';
 import { 
   CheckCircle2, 
   Circle, 
@@ -159,7 +160,7 @@ export default function HomeworkScreen() {
                       },
                     ]}
                   >
-                    {hw.title}
+                    {cleanPronoteHtml(hw.title)}
                   </Text>
                 </View>
 
@@ -178,7 +179,7 @@ export default function HomeworkScreen() {
               </View>
 
               <Text style={[styles.hwDesc, { color: currentTheme.colors.textMuted }]}>
-                {hw.description}
+                {cleanPronoteHtml(hw.description)}
               </Text>
 
               {/* Meta bar */}

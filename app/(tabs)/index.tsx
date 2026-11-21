@@ -17,6 +17,7 @@ import { GlassCard } from '@/components/glass/GlassCard';
 import { FocusTimerModal } from '@/components/focus/FocusTimerModal';
 import { WidgetEditorModal } from '@/components/widgets/WidgetEditorModal';
 import { LayoutPreset } from '@/types';
+import { cleanPronoteHtml } from '@/core/utils/htmlSanitizer';
 import { 
   Flame, 
   Sparkles, 
@@ -47,7 +48,20 @@ export default function DashboardScreen() {
   const [focusModalVisible, setFocusModalVisible] = useState(false);
   const [editorModalVisible, setEditorModalVisible] = useState(false);
 
-  const nextLesson = timetable[0];
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const todayIso = `${y}-${m}-${d}`;
+  const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  const nextLesson = timetable.find((l) => {
+    if (!l.date) return true;
+    if (l.date > todayIso) return true;
+    if (l.date === todayIso && l.endTime >= nowTime) return true;
+    return false;
+  }) || timetable[0];
+
   const pendingHomework = homework.filter((h) => !h.completed);
 
   return (
@@ -256,7 +270,7 @@ export default function DashboardScreen() {
                   />
                   <View style={styles.hwInfo}>
                     <Text style={[styles.hwTitle, { color: currentTheme.colors.text }]}>
-                      {hw.title}
+                      {cleanPronoteHtml(hw.title)}
                     </Text>
                     <Text style={[styles.hwMeta, { color: currentTheme.colors.textMuted }]}>
                       {hw.subject} • Pour {hw.dueDate}

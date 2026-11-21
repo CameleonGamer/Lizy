@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -19,16 +19,104 @@ import {
   User, 
   Plus, 
   AlertCircle,
-  X 
+  X,
+  Calendar
 } from 'lucide-react-native';
 
-const DAYS = ['Lun 16', 'Mar 17', 'Mer 18', 'Jeu 19', 'Ven 20'];
+interface DayInfo {
+  label: string;
+  dayName: string;
+  isoDate: string;
+  dayOfWeek: number;
+}
+
+function getWeekDays(referenceDate: Date = new Date(), hasSaturdayClasses = false): DayInfo[] {
+  const d = new Date(referenceDate);
+  const currentDay = d.getDay(); // 0 = Sunday, 1 = Monday...
+  const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + distanceToMonday);
+
+  const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const fullDayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const count = hasSaturdayClasses ? 6 : 5;
+  const days: DayInfo[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + i);
+    const dayNum = dayDate.getDate();
+    const y = dayDate.getFullYear();
+    const m = String(dayDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(dayNum).padStart(2, '0');
+    const isoDate = `${y}-${m}-${dayStr}`;
+
+    days.push({
+      label: `${dayNames[i]} ${dayNum}`,
+      dayName: fullDayNames[i],
+      isoDate,
+      dayOfWeek: i + 1,
+    });
+  }
+
+  return days;
+}
 
 export default function ScheduleScreen() {
   const { currentTheme } = useThemeStore();
   const { timetable, addTimetableEvent } = useDataStore();
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
+
+  // Determine if Saturday classes exist
+  const hasSaturday = useMemo(() => {
+    return timetable.some((l) => {
+      if (!l.date) return false;
+      const dt = new Date(l.date);
+      return dt.getDay() === 6;
+    });
+  }, [timetable]);
+
+  // Determine reference date for the week
+  const referenceDate = useMemo(() => {
+    // If timetable has dates, use the first date's week
+    const firstDatedLesson = timetable.find((l) => Boolean(l.date));
+    if (firstDatedLesson?.date) {
+      const parsed = new Date(firstDatedLesson.date);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return new Date();
+  }, [timetable]);
+
+  const weekDays = useMemo(() => {
+    return getWeekDays(referenceDate, hasSaturday);
+  }, [referenceDate, hasSaturday]);
+
+  // Default day index to today (or Monday if weekend)
+  const defaultDayIndex = useMemo(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const todayIso = `${y}-${m}-${d}`;
+
+    const matchIdx = weekDays.findIndex((w) => w.isoDate === todayIso);
+    return matchIdx !== -1 ? matchIdx : 0;
+  }, [weekDays]);
+
+  const [selectedDayIndex, setSelectedDayIndex] = useState(defaultDayIndex);
+  const selectedDay = weekDays[selectedDayIndex] || weekDays[0];
+
+  // Filter lessons for selected day and sort chronologically
+  const dayLessons = useMemo(() => {
+    const filtered = timetable.filter((l) => {
+      if (l.date && selectedDay) {
+        return l.date === selectedDay.isoDate;
+      }
+      return true;
+    });
+
+    return filtered.sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [timetable, selectedDay]);
 
   // New personal event state
   const [eventSubject, setEventSubject] = useState('');
@@ -44,6 +132,7 @@ export default function ScheduleScreen() {
       teacher: 'Élève (Personnel)',
       startTime: eventStart.trim() || '17:00',
       endTime: eventEnd.trim() || '18:00',
+      date: selectedDay?.isoDate,
       status: 'normal',
       color: currentTheme.colors.primary,
     });
@@ -56,7 +145,9 @@ export default function ScheduleScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
       <View style={styles.header}>
         <View>
-          <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>PLANNING HEBDOMADAIRE</Text>
+          <Text style={[styles.subtitle, { color: currentTheme.colors.textMuted }]}>
+            {selectedDay ? selectedDay.dayName.toUpperCase() : 'PLANNING HEBDOMADAIRE'}
+          </Text>
           <Text style={[styles.title, { color: currentTheme.colors.text }]}>Emploi du temps</Text>
         </View>
 
@@ -71,11 +162,11 @@ export default function ScheduleScreen() {
 
       {/* Days Bar */}
       <View style={styles.daysBar}>
-        {DAYS.map((day, idx) => {
+        {weekDays.map((day, idx) => {
           const isSelected = selectedDayIndex === idx;
           return (
             <TouchableOpacity
-              key={day}
+              key={day.isoDate}
               onPress={() => setSelectedDayIndex(idx)}
               style={[
                 styles.dayChip,
@@ -91,7 +182,7 @@ export default function ScheduleScreen() {
                   { color: isSelected ? '#FFFFFF' : currentTheme.colors.textMuted },
                 ]}
               >
-                {day}
+                {day.label}
               </Text>
             </TouchableOpacity>
           );
@@ -100,63 +191,81 @@ export default function ScheduleScreen() {
 
       {/* Schedule Timeline */}
       <ScrollView contentContainerStyle={styles.scrollList} showsVerticalScrollIndicator={false}>
-        {timetable.map((lesson) => (
-          <View key={lesson.id} style={styles.timelineItem}>
-            {/* Time Indicator column */}
-            <View style={styles.timeCol}>
-              <Text style={[styles.startTime, { color: currentTheme.colors.text }]}>
-                {lesson.startTime}
-              </Text>
-              <Text style={[styles.endTime, { color: currentTheme.colors.textMuted }]}>
-                {lesson.endTime}
-              </Text>
-            </View>
+        {dayLessons.length === 0 ? (
+          <GlassCard style={styles.emptyCard}>
+            <Calendar size={36} color={currentTheme.colors.primary} />
+            <Text style={[styles.emptyTitle, { color: currentTheme.colors.text }]}>
+              Aucun cours ce jour-là
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: currentTheme.colors.textMuted }]}>
+              Profitez de votre journée ou ajoutez un créneau d'étude personnel avec le bouton "+" ci-dessus.
+            </Text>
+          </GlassCard>
+        ) : (
+          dayLessons.map((lesson) => (
+            <View key={lesson.id} style={styles.timelineItem}>
+              {/* Time Indicator column */}
+              <View style={styles.timeCol}>
+                <Text style={[styles.startTime, { color: currentTheme.colors.text }]}>
+                  {lesson.startTime}
+                </Text>
+                <Text style={[styles.endTime, { color: currentTheme.colors.textMuted }]}>
+                  {lesson.endTime}
+                </Text>
+              </View>
 
-            {/* Lesson Card */}
-            <View style={styles.cardCol}>
-              <GlassCard
-                style={{
-                  ...styles.lessonCard,
-                  borderLeftWidth: 4,
-                  borderLeftColor: lesson.color || currentTheme.colors.primary,
-                }}
-              >
-                <View style={styles.lessonTopRow}>
-                  <Text style={[styles.subjectTitle, { color: currentTheme.colors.text }]}>
-                    {lesson.subject}
-                  </Text>
-                  {lesson.status === 'modified' && (
-                    <View style={styles.modifiedBadge}>
-                      <AlertCircle size={12} color="#F59E0B" />
-                      <Text style={styles.modifiedText}>Modifié</Text>
-                    </View>
-                  )}
-                  {lesson.isCustomEvent && (
-                    <View style={styles.customBadge}>
-                      <Text style={styles.customText}>Perso</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.detailsRow}>
-                  <View style={styles.detailItem}>
-                    <MapPin size={13} color={currentTheme.colors.textMuted} />
-                    <Text style={[styles.detailText, { color: currentTheme.colors.textMuted }]}>
-                      {lesson.room}
+              {/* Lesson Card */}
+              <View style={styles.cardCol}>
+                <GlassCard
+                  style={{
+                    ...styles.lessonCard,
+                    borderLeftWidth: 4,
+                    borderLeftColor: lesson.color || currentTheme.colors.primary,
+                  }}
+                >
+                  <View style={styles.lessonTopRow}>
+                    <Text style={[styles.subjectTitle, { color: currentTheme.colors.text }]}>
+                      {lesson.subject}
                     </Text>
+                    {lesson.status === 'cancelled' && (
+                      <View style={styles.cancelledBadge}>
+                        <AlertCircle size={12} color="#EF4444" />
+                        <Text style={styles.cancelledText}>Annulé</Text>
+                      </View>
+                    )}
+                    {lesson.status === 'modified' && (
+                      <View style={styles.modifiedBadge}>
+                        <AlertCircle size={12} color="#F59E0B" />
+                        <Text style={styles.modifiedText}>Modifié</Text>
+                      </View>
+                    )}
+                    {lesson.isCustomEvent && (
+                      <View style={styles.customBadge}>
+                        <Text style={styles.customText}>Perso</Text>
+                      </View>
+                    )}
                   </View>
 
-                  <View style={styles.detailItem}>
-                    <User size={13} color={currentTheme.colors.textMuted} />
-                    <Text style={[styles.detailText, { color: currentTheme.colors.textMuted }]}>
-                      {lesson.teacher}
-                    </Text>
+                  <View style={styles.detailsRow}>
+                    <View style={styles.detailItem}>
+                      <MapPin size={13} color={currentTheme.colors.textMuted} />
+                      <Text style={[styles.detailText, { color: currentTheme.colors.textMuted }]}>
+                        {lesson.room}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <User size={13} color={currentTheme.colors.textMuted} />
+                      <Text style={[styles.detailText, { color: currentTheme.colors.textMuted }]}>
+                        {lesson.teacher}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </GlassCard>
+                </GlassCard>
+              </View>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
 
       {/* Add Custom Event Modal */}
@@ -322,6 +431,39 @@ const styles = StyleSheet.create({
   },
   subjectTitle: {
     fontSize: 16,
+    fontWeight: '700',
+  },
+  emptyCard: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 16,
+  },
+  cancelledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  cancelledText: {
+    color: '#EF4444',
+    fontSize: 11,
     fontWeight: '700',
   },
   modifiedBadge: {

@@ -88,8 +88,9 @@ export interface TimetableLesson {
   subject: string;
   teacher: string;
   room: string;
-  startTime: string; // ISO
-  endTime: string;   // ISO
+  startTime: string; // "08:00"
+  endTime: string;   // "09:00"
+  date?: string;     // "YYYY-MM-DD" or "DD/MM/YYYY"
   status?: 'normal' | 'cancelled' | 'moved' | 'modified';
   color?: string;
   isCustomEvent?: boolean;

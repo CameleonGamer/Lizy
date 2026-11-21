@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView, SafeAreaView, Platform } from 'reac
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useDataStore } from '@/stores/useDataStore';
 import { GlassCard } from '@/components/glass/GlassCard';
+import { cleanPronoteHtml } from '@/core/utils/htmlSanitizer';
 import { 
   TrendingUp, 
   Award, 
@@ -116,35 +117,43 @@ export default function GradesScreen() {
             Moyennes par Matière
           </Text>
 
-          {averages.map((item) => (
-            <View key={item.subject} style={styles.subjectRow}>
-              <View style={styles.subjectHeader}>
-                <Text style={[styles.subjectName, { color: currentTheme.colors.text }]}>
-                  {item.subject}
-                </Text>
-                <View style={styles.gradeComparison}>
-                  <Text style={[styles.subjectAvg, { color: currentTheme.colors.text }]}>
-                    {item.average.toFixed(1)}
+          {averages.length === 0 ? (
+            <Text style={[styles.emptySectionText, { color: currentTheme.colors.textMuted }]}>
+              Aucune moyenne par matière disponible pour cette période.
+            </Text>
+          ) : (
+            averages.map((item) => (
+              <View key={item.subject} style={styles.subjectRow}>
+                <View style={styles.subjectHeader}>
+                  <Text style={[styles.subjectName, { color: currentTheme.colors.text }]}>
+                    {item.subject}
                   </Text>
-                  <Text style={[styles.classAvg, { color: currentTheme.colors.textMuted }]}>
-                    (classe: {item.classAverage?.toFixed(1)})
-                  </Text>
+                  <View style={styles.gradeComparison}>
+                    <Text style={[styles.subjectAvg, { color: currentTheme.colors.text }]}>
+                      {item.average.toFixed(1)}
+                    </Text>
+                    {item.classAverage !== undefined && (
+                      <Text style={[styles.classAvg, { color: currentTheme.colors.textMuted }]}>
+                        (classe: {item.classAverage?.toFixed(1)})
+                      </Text>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.barTrack}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      {
+                        width: `${Math.min(100, Math.max(0, (item.average / 20) * 100))}%`,
+                        backgroundColor: item.color || currentTheme.colors.primary,
+                      },
+                    ]}
+                  />
                 </View>
               </View>
-
-              <View style={styles.barTrack}>
-                <View
-                  style={[
-                    styles.barFill,
-                    {
-                      width: `${(item.average / 20) * 100}%`,
-                      backgroundColor: item.color || currentTheme.colors.primary,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          ))}
+            ))
+          )}
         </GlassCard>
 
         {/* Recent Grades History */}
@@ -153,34 +162,42 @@ export default function GradesScreen() {
             Dernières Notes Reçues
           </Text>
 
-          {grades.map((grade) => (
-            <View key={grade.id} style={styles.gradeHistoryItem}>
-              <View style={styles.gradeInfoCol}>
-                <Text style={[styles.gradeSubject, { color: currentTheme.colors.text }]}>
-                  {grade.subject}
-                </Text>
-                <Text style={[styles.gradeDesc, { color: currentTheme.colors.textMuted }]}>
-                  {grade.description}
-                </Text>
-                <View style={styles.gradeDateRow}>
-                  <Calendar size={11} color={currentTheme.colors.textMuted} />
-                  <Text style={[styles.gradeDate, { color: currentTheme.colors.textMuted }]}>
-                    {grade.date} • Coeff {grade.coefficient}
+          {grades.length === 0 ? (
+            <Text style={[styles.emptySectionText, { color: currentTheme.colors.textMuted }]}>
+              Aucune évaluation enregistrée pour cette période.
+            </Text>
+          ) : (
+            grades.map((grade) => (
+              <View key={grade.id} style={styles.gradeHistoryItem}>
+                <View style={styles.gradeInfoCol}>
+                  <Text style={[styles.gradeSubject, { color: currentTheme.colors.text }]}>
+                    {grade.subject}
                   </Text>
+                  <Text style={[styles.gradeDesc, { color: currentTheme.colors.textMuted }]}>
+                    {cleanPronoteHtml(grade.description)}
+                  </Text>
+                  <View style={styles.gradeDateRow}>
+                    <Calendar size={11} color={currentTheme.colors.textMuted} />
+                    <Text style={[styles.gradeDate, { color: currentTheme.colors.textMuted }]}>
+                      {grade.date} • Coeff {grade.coefficient}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.gradeScoreCol}>
+                  <Text style={[styles.historyScore, { color: currentTheme.colors.primary }]}>
+                    {grade.value}
+                    <Text style={styles.historyOutOf}>/{grade.outOf}</Text>
+                  </Text>
+                  {grade.classAverage !== undefined && (
+                    <Text style={[styles.historyClassAvg, { color: currentTheme.colors.textMuted }]}>
+                      Moy. {grade.classAverage}
+                    </Text>
+                  )}
                 </View>
               </View>
-
-              <View style={styles.gradeScoreCol}>
-                <Text style={[styles.historyScore, { color: currentTheme.colors.primary }]}>
-                  {grade.value}
-                  <Text style={styles.historyOutOf}>/{grade.outOf}</Text>
-                </Text>
-                <Text style={[styles.historyClassAvg, { color: currentTheme.colors.textMuted }]}>
-                  Moy. {grade.classAverage}
-                </Text>
-              </View>
-            </View>
-          ))}
+            ))
+          )}
         </GlassCard>
       </ScrollView>
     </SafeAreaView>
@@ -295,6 +312,11 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     marginBottom: 0,
+  },
+  emptySectionText: {
+    fontSize: 13,
+    paddingVertical: 12,
+    fontStyle: 'italic',
   },
   sectionTitle: {
     fontSize: 16,

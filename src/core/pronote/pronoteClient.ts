@@ -4,6 +4,7 @@ import pako from 'pako';
 import { PRONOTE_APP_USER_AGENT } from './constants';
 import { Grade, Homework, TimetableLesson, SubjectAverage, PronoteUser } from '@/types';
 import { SecureStorage } from '../security/secureStorage';
+import { cleanPronoteHtml } from '../utils/htmlSanitizer';
 
 export interface PronoteQrPayload {
   url: string;
@@ -94,6 +95,7 @@ export class PronoteClient {
   private clientIdentifier: string = '';
   private uuid: string = '';
   private periods: Array<{ id: string; name: string }> = [];
+  private rawPeriods: any[] = [];
   private startDay: Date = new Date();
   private userRessource: any = null;
 
@@ -156,6 +158,53 @@ export class PronoteClient {
     const diffTime = date.getTime() - this.startDay.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     return Math.floor(diffDays / 7) + 1;
+  }
+
+  /**
+   * Resolves current active period from Pronote user settings, date, or defaults
+   */
+  private resolveActivePeriod(): { id: string; name: string } {
+    // 1. From ParametresUtilisateur: listeOngletsPourPeriodes for onglet 198 (Notes)
+    const onglets = this.userRessource?.listeOngletsPourPeriodes?.V || this.userRessource?.listeOngletsPourPeriodes;
+    if (Array.isArray(onglets)) {
+      const notesTab = onglets.find((o: any) => o?.G === 198);
+      const defPeriod = notesTab?.periodeParDefaut?.V || notesTab?.periodeParDefaut;
+      if (defPeriod && (defPeriod.N || defPeriod.id)) {
+        return {
+          id: defPeriod.N || defPeriod.id,
+          name: defPeriod.L || defPeriod.name || 'Période active',
+        };
+      }
+    }
+
+    // 2. Date-based matching against ListePeriodes (dateDebut / dateFin)
+    const now = new Date();
+    if (Array.isArray(this.rawPeriods)) {
+      for (const p of this.rawPeriods) {
+        const dDebut = p?.dateDebut?.V || p?.dateDebut;
+        const dFin = p?.dateFin?.V || p?.dateFin;
+        if (dDebut && dFin && typeof dDebut === 'string' && typeof dFin === 'string') {
+          const [d1, m1, y1] = dDebut.split('/').map(Number);
+          const [d2, m2, y2] = dFin.split('/').map(Number);
+          if (!isNaN(d1) && !isNaN(d2)) {
+            const start = new Date(y1, m1 - 1, d1);
+            const end = new Date(y2, m2 - 1, d2, 23, 59, 59);
+            if (now >= start && now <= end) {
+              return { id: p.N, name: p.L };
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Fallback: Look for "Trimestre 1" or "Semestre 1"
+    if (this.periods.length > 0) {
+      const firstTerm = this.periods.find((p) => /trimestre\s*1|1er\s*trimestre|semestre\s*1/i.test(p.name));
+      if (firstTerm) return firstTerm;
+      return this.periods[0];
+    }
+
+    return { id: 'A', name: 'Trimestre 1' };
   }
 
   /**
@@ -332,8 +381,10 @@ export class PronoteClient {
       const [d, m, y] = generalInfo.PremierLundi.V.split('/').map(Number);
       this.startDay = new Date(y, m - 1, d);
     }
-    if (Array.isArray(generalInfo?.ListePeriodes)) {
-      this.periods = generalInfo.ListePeriodes.map((p: any) => ({
+    const rawPeriodList = generalInfo?.ListePeriodes?.V || generalInfo?.ListePeriodes;
+    if (Array.isArray(rawPeriodList)) {
+      this.rawPeriods = rawPeriodList;
+      this.periods = rawPeriodList.map((p: any) => ({
         id: p.N,
         name: p.L,
       }));
@@ -459,72 +510,129 @@ export class PronoteClient {
     };
 
     // 9. Fetch Grades & Averages (DernieresNotes on onglet 198)
-    const currentPeriod = this.periods[this.periods.length - 1] || { id: 'A', name: 'Trimestre 1' };
+    const primaryPeriod = this.resolveActivePeriod();
+    const periodsToTry = [primaryPeriod];
+    for (const p of this.periods) {
+      if (p.id !== primaryPeriod.id && !periodsToTry.some((x) => x.id === p.id)) {
+        periodsToTry.push(p);
+      }
+    }
+
     let grades: Grade[] = [];
     let averages: SubjectAverage[] = [];
     let generalAverage = 0;
 
-    try {
-      const notesRes = await this.postRpc('DernieresNotes', 198, {
-        Periode: { N: currentPeriod.id, L: currentPeriod.name },
-      });
-      const notesData = notesRes?.dataSec?.data;
-
-      // Parse overall average
-      if (notesData?.moyGenerale?.V) {
-        const parsedAvg = parseFloat(notesData.moyGenerale.V.replace(',', '.'));
-        if (!isNaN(parsedAvg)) generalAverage = parsedAvg;
-      }
-
-      // Parse subject averages
-      if (Array.isArray(notesData?.listeServices?.V)) {
-        notesData.listeServices.V.forEach((s: any) => {
-          const subject = s?.L || 'Matière';
-          const avgStr = s?.moyEleve?.V?.replace(',', '.');
-          const avgNum = parseFloat(avgStr);
-          const classAvgStr = s?.moyClasse?.V?.replace(',', '.');
-          const classAvgNum = parseFloat(classAvgStr);
-
-          if (!isNaN(avgNum)) {
-            averages.push({
-              subject,
-              average: avgNum,
-              classAverage: !isNaN(classAvgNum) ? classAvgNum : undefined,
-              color: s?.couleur || undefined,
-            });
-          }
+    for (const period of periodsToTry) {
+      try {
+        const notesRes = await this.postRpc('DernieresNotes', 198, {
+          Periode: { N: period.id, L: period.name },
         });
-      }
+        const notesData = notesRes?.dataSec?.data;
+        if (!notesData) continue;
 
-      // Parse individual grades
-      if (Array.isArray(notesData?.listeDevoirs?.V)) {
-        notesData.listeDevoirs.V.forEach((g: any, idx: number) => {
-          const valStr = g?.note?.V?.replace(',', '.');
-          const valNum = parseFloat(valStr);
-          const outOfStr = g?.bareme?.V?.replace(',', '.') || '20';
-          const outOfNum = parseFloat(outOfStr) || 20;
+        let curGeneralAvg = 0;
+        const rawMoyGen = notesData?.moyGenerale?.V || notesData?.moyGenerale;
+        if (rawMoyGen && typeof rawMoyGen === 'string') {
+          const parsedAvg = parseFloat(rawMoyGen.replace(',', '.'));
+          if (!isNaN(parsedAvg) && parsedAvg > 0) curGeneralAvg = parsedAvg;
+        } else if (typeof rawMoyGen === 'number' && rawMoyGen > 0) {
+          curGeneralAvg = rawMoyGen;
+        }
 
-          if (!isNaN(valNum)) {
-            grades.push({
-              id: `g-real-${g?.N || idx}`,
-              subject: g?.service?.V?.L || 'Évaluation',
+        const curAverages: SubjectAverage[] = [];
+        const rawServices = notesData?.listeServices?.V || notesData?.listeServices || [];
+        if (Array.isArray(rawServices)) {
+          rawServices.forEach((s: any) => {
+            const subject = s?.L || s?.libelle || 'Matière';
+            const rawAvg = s?.moyEleve?.V !== undefined ? s.moyEleve.V : s?.moyEleve;
+            const avgStr = String(rawAvg || '').replace(',', '.');
+            const avgNum = parseFloat(avgStr);
+
+            const rawClassAvg = s?.moyClasse?.V !== undefined ? s.moyClasse.V : s?.moyClasse;
+            const classAvgStr = String(rawClassAvg || '').replace(',', '.');
+            const classAvgNum = parseFloat(classAvgStr);
+
+            if (!isNaN(avgNum)) {
+              curAverages.push({
+                subject,
+                average: avgNum,
+                classAverage: !isNaN(classAvgNum) ? classAvgNum : undefined,
+                color: s?.couleur ? (String(s.couleur).startsWith('#') ? s.couleur : `#${s.couleur}`) : undefined,
+              });
+            }
+          });
+        }
+
+        const curGrades: Grade[] = [];
+        const rawNotes = notesData?.listeDevoirs?.V || notesData?.listeDevoirs || [];
+        if (Array.isArray(rawNotes)) {
+          rawNotes.forEach((g: any, idx: number) => {
+            const rawVal = g?.note?.V !== undefined ? g.note.V : g?.note;
+            const valStr = String(rawVal || '').replace(',', '.');
+            if (valStr.startsWith('|') || isNaN(parseFloat(valStr))) return;
+            const valNum = parseFloat(valStr);
+
+            const rawBareme = g?.bareme?.V !== undefined ? g.bareme.V : g?.bareme;
+            const outOfStr = String(rawBareme || '20').replace(',', '.');
+            const outOfNum = parseFloat(outOfStr) || 20;
+
+            const rawCoeff = g?.coefficient?.V !== undefined ? g.coefficient.V : g?.coefficient;
+            const coeffNum = parseFloat(String(rawCoeff || '1').replace(',', '.')) || 1;
+
+            const rawDate = g?.date?.V || g?.date || new Date().toISOString().split('T')[0];
+            let formattedDate = String(rawDate);
+            if (formattedDate.includes('/')) {
+              const [d, m, y] = formattedDate.split(' ')[0].split('/');
+              if (d && m && y) formattedDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            }
+
+            const rawComment = g?.commentaire?.V || g?.commentaire || g?.titre || g?.service?.V?.L || 'Évaluation';
+            const description = cleanPronoteHtml(rawComment) || 'Évaluation';
+
+            const rawClassAvg = g?.moyenne?.V !== undefined ? g.moyenne.V : g?.moyenne;
+            const classAvg = parseFloat(String(rawClassAvg || '').replace(',', '.')) || undefined;
+
+            curGrades.push({
+              id: `g-real-${g?.N || g?.id || idx}`,
+              subject: g?.service?.V?.L || g?.service?.L || g?.matiere || 'Évaluation',
               value: valNum,
               outOf: outOfNum,
-              coefficient: parseFloat(g?.coefficient?.replace(',', '.') || '1') || 1,
-              date: g?.date?.V || new Date().toISOString().split('T')[0],
-              description: g?.commentaire || g?.service?.V?.L || 'Note Pronote',
-              classAverage: parseFloat(g?.moyenne?.V?.replace(',', '.') || '') || undefined,
+              coefficient: coeffNum,
+              date: formattedDate,
+              description,
+              classAverage: classAvg,
             });
-          }
-        });
-      }
+          });
+        }
 
-      if (generalAverage === 0 && averages.length > 0) {
-        const sum = averages.reduce((acc, a) => acc + a.average, 0);
-        generalAverage = Math.round((sum / averages.length) * 100) / 100;
+        // Calculate general average if missing from server
+        if (curGeneralAvg === 0) {
+          if (curAverages.length > 0) {
+            const sum = curAverages.reduce((acc, a) => acc + a.average, 0);
+            curGeneralAvg = Math.round((sum / curAverages.length) * 100) / 100;
+          } else if (curGrades.length > 0) {
+            let totalWeighted = 0;
+            let totalCoeffs = 0;
+            for (const gr of curGrades) {
+              const normalized = (gr.value / gr.outOf) * 20;
+              totalWeighted += normalized * gr.coefficient;
+              totalCoeffs += gr.coefficient;
+            }
+            if (totalCoeffs > 0) {
+              curGeneralAvg = Math.round((totalWeighted / totalCoeffs) * 100) / 100;
+            }
+          }
+        }
+
+        if (curGrades.length > 0 || curAverages.length > 0) {
+          grades = curGrades;
+          averages = curAverages;
+          generalAverage = curGeneralAvg;
+          break; // Found period with grades!
+        }
+      } catch (err) {
+        console.warn(`Erreur lors de la récupération des notes pour période ${period.name}:`, err);
       }
-    } catch (err) {
-      console.warn('Erreur lors de la récupération des notes:', err);
     }
 
     // 10. Fetch Timetable (PageEmploiDuTemps on onglet 16)
@@ -544,26 +652,110 @@ export class PronoteClient {
         Ressource: this.userRessource,
       });
 
-      const coursList = edtRes?.dataSec?.data?.ListeCours;
+      const coursList = edtRes?.dataSec?.data?.ListeCours?.V || edtRes?.dataSec?.data?.ListeCours || [];
       if (Array.isArray(coursList)) {
         coursList.forEach((c: any, idx: number) => {
+          let subject = '';
+          let teacher = '';
+          let room = '';
+
+          // Pronote stores subject (G: 16), teacher (G: 3), room (G: 17) in ListeContenus
+          const contents = c?.ListeContenus?.V || c?.ListeContenus;
+          if (Array.isArray(contents)) {
+            for (const item of contents) {
+              if (item?.G === 16 && item?.L) {
+                subject = subject ? `${subject} / ${item.L}` : item.L;
+              } else if (item?.G === 3 && item?.L) {
+                teacher = teacher ? `${teacher}, ${item.L}` : item.L;
+              } else if (item?.G === 17 && item?.L) {
+                room = room ? `${room}, ${item.L}` : item.L;
+              }
+            }
+          }
+
+          // Fallbacks for alternative formats
+          if (!subject) {
+            subject = c?.Matiere?.V?.L || c?.Matiere?.L || c?.service?.V?.L || c?.service?.L || c?.matiere || 'Cours';
+          }
+          if (!teacher) {
+            teacher = c?.Professeur?.V?.L || c?.Professeur?.L || c?.ListeProfesseurs?.V?.[0]?.L || c?.professeur || 'Enseignant';
+          }
+          if (!room) {
+            room = c?.Salle?.V?.L || c?.Salle?.L || c?.ListeSalles?.V?.[0]?.L || c?.salle || 'Salle';
+          }
+
           let startTime = '08:00';
           let endTime = '09:00';
+          let isoDate = '';
+
           if (c?.DateDuCours?.V) {
-            const timePart = c.DateDuCours.V.split(' ')[1];
-            if (timePart) startTime = timePart.substring(0, 5);
+            const parts = String(c.DateDuCours.V).trim().split(' ');
+            const datePart = parts[0]; // "21/11/2026"
+            const timePart = parts[1] || '08:00:00';
+            const [d, m, y] = datePart.split('/').map(Number);
+            const [hh, mm] = timePart.split(':').map(Number);
+
+            if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+              isoDate = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            }
+            if (!isNaN(hh) && !isNaN(mm)) {
+              startTime = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+              const dt = new Date(y, m - 1, d, hh, mm);
+
+              const endStr = c?.DateFinDuCours?.V || c?.DateDuCoursFin?.V || c?.DateFin?.V;
+              if (endStr) {
+                const endParts = String(endStr).trim().split(' ');
+                const endT = endParts[1] || endParts[0];
+                if (endT && endT.includes(':')) {
+                  endTime = endT.substring(0, 5);
+                }
+              } else {
+                let durMinutes = 60;
+                if (typeof c?.duree === 'number') {
+                  if (c.duree >= 15) {
+                    durMinutes = c.duree;
+                  } else if (c.duree > 0) {
+                    durMinutes = c.duree <= 4 ? c.duree * 60 : c.duree;
+                  }
+                }
+                const endDt = new Date(dt.getTime() + durMinutes * 60 * 1000);
+                endTime = `${String(endDt.getHours()).padStart(2, '0')}:${String(endDt.getMinutes()).padStart(2, '0')}`;
+              }
+            }
+          }
+
+          let color = c?.CouleurFond;
+          if (color && typeof color === 'string' && !color.startsWith('#')) {
+            color = `#${color}`;
+          }
+
+          let status: 'normal' | 'cancelled' | 'modified' = 'normal';
+          const statText = String(c?.Statut || '');
+          if (c?.estAnnule || c?.dispense || /annul|absent/i.test(statText)) {
+            status = 'cancelled';
+          } else if (c?.estModifie || /modifi|d[eé]plac/i.test(statText)) {
+            status = 'modified';
           }
 
           timetable.push({
-            id: `tt-real-${c?.N || idx}`,
-            subject: c?.Matiere?.V?.L || c?.Matiere?.L || 'Cours',
-            teacher: c?.Professeur?.V?.L || c?.Professeur?.L || c?.ListeProfesseurs?.V?.[0]?.L || 'Enseignant',
-            room: c?.Salle?.V?.L || c?.Salle?.L || c?.ListeSalles?.V?.[0]?.L || 'Salle',
+            id: `tt-real-${c?.N || c?.id || idx}`,
+            subject,
+            teacher,
+            room,
             startTime,
             endTime,
-            status: c?.estAnnule ? 'cancelled' : 'normal',
-            color: c?.CouleurFond,
+            date: isoDate,
+            status,
+            color,
           });
+        });
+
+        // Sort chronologically by date then startTime
+        timetable.sort((a, b) => {
+          if (a.date && b.date && a.date !== b.date) {
+            return a.date.localeCompare(b.date);
+          }
+          return a.startTime.localeCompare(b.startTime);
         });
       }
     } catch (err) {
@@ -581,18 +773,28 @@ export class PronoteClient {
         },
       });
 
-      const rawHwList = hwRes?.dataSec?.data?.ListeTravauxAFaire?.V;
+      const rawHwList = hwRes?.dataSec?.data?.ListeTravauxAFaire?.V || hwRes?.dataSec?.data?.ListeTravauxAFaire || [];
       if (Array.isArray(rawHwList)) {
         rawHwList.forEach((h: any, idx: number) => {
-          const desc = h?.descriptif?.V || 'Devoir Pronote';
-          const title = desc.length > 40 ? desc.substring(0, 40) + '...' : desc;
+          const rawDesc = h?.descriptif?.V || h?.descriptif || 'Devoir Pronote';
+          const cleanDesc = cleanPronoteHtml(rawDesc);
+
+          const firstLine = cleanDesc.split('\n')[0] || cleanDesc;
+          const title = firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
+
+          const subject = h?.Matiere?.V?.L || h?.Matiere?.L || h?.service?.V?.L || h?.service?.L || 'Matière';
+
+          let dueDate = h?.PourLe?.V || h?.PourLe || 'Bientôt';
+          if (typeof dueDate === 'string' && dueDate.includes(' ')) {
+            dueDate = dueDate.split(' ')[0];
+          }
 
           homework.push({
-            id: `hw-real-${h?.N || idx}`,
-            subject: h?.Matiere?.V?.L || h?.Matiere?.L || 'Matière',
-            title,
-            description: desc,
-            dueDate: h?.PourLe?.V || 'Bientôt',
+            id: `hw-real-${h?.N || h?.id || idx}`,
+            subject,
+            title: title || 'Devoir Pronote',
+            description: cleanDesc,
+            dueDate,
             isPersonal: false,
             completed: Boolean(h?.TAFFait),
             subtasks: [],
