@@ -77,6 +77,7 @@ Ce projet s'appuie sur les travaux d'ingénierie inverse et de documentation com
 
 * **[delphiki/hass-pronote](https://github.com/delphiki/hass-pronote)** par `@delphiki` : Intégration Home Assistant pour Pronote, documentation des flux JSON-RPC, décodage des devoirs et structure des requêtes d'authentification.
 * **[bain3/pronotepy](https://github.com/bain3/pronotepy)** par `@bain3` : Bibliothèque Python pionnière pour l'API Pronote, décryptage du protocole QR Code mobile, dérivation de clés AES/MD5 et spécification des données d'emploi du temps (`ListeContenus`).
+* **[QWEA0/Liquid-Glass-Android](https://github.com/QWEA0/Liquid-Glass-Android)** par `@QWEA0` : Modèle physique de réfraction et dispersion chromatique Liquid Glass (SDF dispersion & specular highlights).
 * **[Index Éducation](https://www.index-education.com/fr/)** : Éditeur de Pronote, plateforme scolaire de référence en France.
 * **[Lucide Icons](https://lucide.dev/)** : Ensemble d'icônes vectorielles open-source.
 * **[Expo](https://expo.dev/)** & **[React Native](https://reactnative.dev/)** : Frameworks de développement mobile natif.
