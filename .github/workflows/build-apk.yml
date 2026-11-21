@@ -1,0 +1,91 @@
+name: Build Android APK (Beta)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: 🛠️ Prebuild native Android project (CNG)
+        run: npx expo prebuild --platform android --clean
+
+      - name: 🔑 Configure signing config for standalone APK
+        run: |
+          sed -i -e 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' android/app/build.gradle || true
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: 🔨 Compile Android APK (Release)
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: 📋 Locate and Rename APK
+        run: |
+          mkdir -p build-output
+          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          echo "Found APK at: $APK_PATH"
+          cp "$APK_PATH" build-output/Lizy-Beta.apk
+          ls -lh build-output/Lizy-Beta.apk
+
+      - name: 🚀 Publish Beta Release on GitHub
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: "Lizy ${{ github.ref_name }} (Android APK)"
+          tag_name: ${{ github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            ## 📱 Lizy - Version Bêta Standalone Android (.APK)
+            
+            Cette version préliminaire est compilée directement depuis le code source pour fonctionner en toute autonomie sur n'importe quel smartphone Android, sans passer par Expo Go.
+            
+            ### ✨ Nouveautés & Correctifs de cette Beta :
+            * 🔒 **100% Zero-Trust & Local :** Chiffrement matériel local des identifiants et données de session.
+            * 📲 **Connexion directe QR Code Pronote :** Rétro-ingénierie conforme du protocole mobile Index Éducation.
+            * 📊 **Notes & Moyenne Générale :** Calcul automatique et résolution de la période active.
+            * 📅 **Emploi du Temps Dynamique :** Cours réels ordonnés chronologiquement avec matières, professeurs et salles (`ListeContenus`).
+            * 📝 **Devoirs Assainis :** Suppression des balises HTML parasites (`<div>`, etc.).
+            * 🛡️ **Code PIN & Bouclier Multitâche :** Protection anti-regards indiscrets.
+            * 💎 **Véritable Apple Liquid Glass :** Réfraction et dispersion chromatique inspirées de `QWEA0/Liquid-Glass-Android`.
+            * 📱 **Barre de Navigation :** Marges sécurisées respectant les boutons système Android.
+            
+            ### 📥 Installation :
+            1. Téléchargez le fichier **`Lizy-Beta.apk`** ci-dessous sur votre smartphone Android.
+            2. Ouvrez le fichier et autorisez l'installation depuis cette source si demandé.
+            3. Lancez Lizy et connectez-vous par QR Code ou via ÉduConnect !
+          files: build-output/Lizy-Beta.apk
+
+      - name: 📤 Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lizy-Beta-APK
+          path: build-output/Lizy-Beta.apk
