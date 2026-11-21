@@ -226,15 +226,16 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <CameraView
-                      style={styles.cameraView}
-                      barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                      onBarcodeScanned={handleBarcodeScanned}
-                    >
-                      <View style={styles.qrTargetOverlay}>
+                    <View style={styles.cameraWrapper}>
+                      <CameraView
+                        style={styles.cameraView}
+                        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                        onBarcodeScanned={handleBarcodeScanned}
+                      />
+                      <View pointerEvents="none" style={styles.qrTargetOverlay}>
                         <View style={[styles.qrFrame, { borderColor: currentTheme.colors.primary }]} />
                       </View>
-                    </CameraView>
+                    </View>
                   )}
                 </View>
               ) : (
@@ -391,11 +392,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#000000',
   },
+  cameraWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
   cameraView: {
     flex: 1,
   },
   qrTargetOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
   },
