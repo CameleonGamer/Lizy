@@ -53,7 +53,15 @@ const THEME_OPTIONS: { name: ThemePresetName; color: string; desc: string }[] = 
 
 export default function ProfileScreen() {
   const { currentTheme, setPreset } = useThemeStore();
-  const { xp, level, streakDays, unlockedBadges, addXp } = useGamingStore();
+  const { 
+    xp, 
+    level, 
+    streakDays, 
+    unlockedBadges, 
+    addXp, 
+    levelUpAnimationEnabled, 
+    setLevelUpAnimationEnabled 
+  } = useGamingStore();
   const logout = useAuthStore((s) => s.logout);
   const { 
     isLockEnabled, 
@@ -355,6 +363,39 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </GlassCard>
+
+        {/* Gamification & Animations Settings */}
+        <GlassCard style={styles.sectionCard}>
+          <View style={styles.privacyHeader}>
+            <Trophy size={20} color="#F59E0B" />
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text }]}>
+              Gamification & Animations
+            </Text>
+          </View>
+
+          {/* Level Up Animation Switch */}
+          <View style={[styles.secSettingRow, { borderColor: currentTheme.colors.borderGlass }]}>
+            <View style={styles.secSettingLeft}>
+              <Sparkles size={18} color={levelUpAnimationEnabled ? '#F59E0B' : currentTheme.colors.textMuted} />
+              <View style={styles.secSettingTexts}>
+                <Text style={[styles.secSettingTitle, { color: currentTheme.colors.text }]}>
+                  Animation de montée de niveau
+                </Text>
+                <Text style={[styles.secSettingSub, { color: currentTheme.colors.textMuted }]}>
+                  {levelUpAnimationEnabled
+                    ? 'Activée • Célébration affichée lors des passages de niveau'
+                    : 'Désactivée • Montée de niveau silencieuse'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={levelUpAnimationEnabled}
+              onValueChange={setLevelUpAnimationEnabled}
+              trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#F59E0B' }}
+              thumbColor="#FFFFFF"
+            />
           </View>
         </GlassCard>
 

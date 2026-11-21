@@ -9,6 +9,7 @@ import { useGamingStore } from '@/stores/useGamingStore';
 import { useSecurityStore } from '@/stores/useSecurityStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { AppLockModal } from '@/components/security/AppLockModal';
+import { LevelUpModal } from '@/components/gaming/LevelUpModal';
 
 function AuthNavigationGuard() {
   const { isAuthenticated } = useAuthStore();
@@ -75,6 +76,9 @@ export default function RootLayout() {
 
           {/* Hardware Security Lock & Multi-tasking Privacy Shield */}
           <AppLockModal isBackgrounded={isBackgrounded} />
+
+          {/* Level Up Celebratory Animation Modal */}
+          <LevelUpModal />
         </View>
       </GestureHandlerRootView>
     </SafeAreaProvider>

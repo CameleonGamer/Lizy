@@ -44,7 +44,7 @@ const LAYOUT_PRESETS: { label: string; value: LayoutPreset }[] = [
 export default function DashboardScreen() {
   const { currentTheme } = useThemeStore();
   const { activeLayout, setLayoutPreset } = useWidgetStore();
-  const { xp, level, streakDays } = useGamingStore();
+  const { xp, level, streakDays, claimHomeworkXp } = useGamingStore();
   const { generalAverage, homework, timetable, toggleHomework } = useDataStore();
   const { user } = useAuthStore();
 
@@ -282,7 +282,12 @@ export default function DashboardScreen() {
               pendingHomework.map((hw) => (
                 <TouchableOpacity
                   key={hw.id}
-                  onPress={() => toggleHomework(hw.id)}
+                  onPress={() => {
+                    toggleHomework(hw.id);
+                    if (!hw.completed) {
+                      claimHomeworkXp(hw.id);
+                    }
+                  }}
                   style={styles.hwRow}
                 >
                   <CheckCircle2

@@ -32,7 +32,7 @@ import {
 export default function HomeworkScreen() {
   const { currentTheme } = useThemeStore();
   const { homework, toggleHomework, toggleSubtask, addPersonalHomework } = useDataStore();
-  const addXp = useGamingStore((s) => s.addXp);
+  const { addXp, claimHomeworkXp } = useGamingStore();
 
   const [filter, setFilter] = useState<'pending' | 'completed' | 'past' | 'all'>('pending');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -64,7 +64,8 @@ export default function HomeworkScreen() {
     } catch {}
     toggleHomework(id);
     if (!currentlyCompleted) {
-      addXp(10); // +10 XP for completing homework
+      // Strictly prevent infinite XP farming: only grants XP on the first completion
+      claimHomeworkXp(id);
     }
   };
 

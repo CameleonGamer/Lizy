@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as Haptics from 'expo-haptics';
 import { Badge, GamificationState } from '@/types';
 
 export const INITIAL_BADGES: Badge[] = [
@@ -36,6 +37,9 @@ export const INITIAL_BADGES: Badge[] = [
 
 interface GamingStore extends GamificationState {
   addXp: (amount: number) => { newLevel: number; leveledUp: boolean };
+  claimHomeworkXp: (homeworkId: string) => { rewarded: boolean; newLevel: number; leveledUp: boolean };
+  setLevelUpAnimationEnabled: (enabled: boolean) => void;
+  dismissLevelUp: () => void;
   recordDailyActivity: () => void;
   unlockBadge: (badgeId: string) => boolean;
 }
@@ -46,6 +50,9 @@ export const useGamingStore = create<GamingStore>((set, get) => ({
   streakDays: 1,
   lastActiveDate: new Date().toISOString().split('T')[0],
   unlockedBadges: [],
+  rewardedHomeworkIds: [],
+  levelUpAnimationEnabled: true,
+  pendingLevelUp: null,
 
   addXp: (amount: number) => {
     const currentXp = get().xp;
@@ -54,8 +61,40 @@ export const useGamingStore = create<GamingStore>((set, get) => ({
     const newLevel = Math.floor(newXp / 100) + 1;
     const leveledUp = newLevel > currentLevel;
 
+    if (leveledUp) {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {}
+      if (get().levelUpAnimationEnabled) {
+        set({ xp: newXp, level: newLevel, pendingLevelUp: newLevel });
+        return { newLevel, leveledUp };
+      }
+    }
+
     set({ xp: newXp, level: newLevel });
     return { newLevel, leveledUp };
+  },
+
+  claimHomeworkXp: (homeworkId: string) => {
+    const { rewardedHomeworkIds } = get();
+    // Anti-farming check: if this homework was already rewarded, grant 0 XP
+    if (rewardedHomeworkIds.includes(homeworkId)) {
+      return { rewarded: false, newLevel: get().level, leveledUp: false };
+    }
+
+    set({ rewardedHomeworkIds: [...rewardedHomeworkIds, homeworkId] });
+    const xpResult = get().addXp(10);
+    get().unlockBadge('first_homework');
+
+    return { rewarded: true, newLevel: xpResult.newLevel, leveledUp: xpResult.leveledUp };
+  },
+
+  setLevelUpAnimationEnabled: (enabled: boolean) => {
+    set({ levelUpAnimationEnabled: enabled });
+  },
+
+  dismissLevelUp: () => {
+    set({ pendingLevelUp: null });
   },
 
   recordDailyActivity: () => {

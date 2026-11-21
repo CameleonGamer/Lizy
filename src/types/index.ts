@@ -153,4 +153,7 @@ export interface GamificationState {
   streakDays: number;
   lastActiveDate: string;
   unlockedBadges: string[];
+  rewardedHomeworkIds: string[];
+  levelUpAnimationEnabled: boolean;
+  pendingLevelUp: number | null;
 }
