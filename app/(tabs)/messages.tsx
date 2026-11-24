@@ -24,7 +24,6 @@ import { PronoteMessage } from '@/types';
 import { 
   Mail, 
   MailOpen, 
-  ShieldCheck, 
   ChevronRight, 
   X, 
   User, 
@@ -208,11 +207,6 @@ export default function MessagesScreen() {
               </View>
             )}
           </View>
-        </View>
-
-        <View style={[styles.securityBadge, { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.25)' }]}>
-          <ShieldCheck size={14} color="#10B981" />
-          <Text style={styles.securityText}>Chiffré Local</Text>
         </View>
       </View>
 
@@ -678,20 +672,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
-  },
-  securityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 4,
-  },
-  securityText: {
-    color: '#10B981',
-    fontWeight: '700',
-    fontSize: 12,
   },
   searchSection: {
     paddingHorizontal: 20,
