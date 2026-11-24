@@ -59,24 +59,29 @@ jobs:
           ARCHS="${{ inputs.architectures || 'arm64-v8a,armeabi-v7a' }}"
           echo "Compiling target architectures: $ARCHS"
 
-          # 1. Allocate 4GB RAM to Gradle with parallel GC to prevent GC pauses
-          sed -i 's/org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC -XX:MaxMetaspaceSize=1024m/g' gradle.properties
-
-          # 2. Restrict C++ CMake compilation to real physical phones (drops x86/x86_64 emulator bloat)
-          sed -i "s/reactNativeArchitectures=.*/reactNativeArchitectures=$ARCHS/g" gradle.properties
-
-          # 3. Disable R8 minification for fast beta builds
-          sed -i 's/android.enableMinifyInReleaseBuilds=true/android.enableMinifyInReleaseBuilds=false/g' gradle.properties
-
-          # 4. Disable slow AAPT2 PNG re-crunching
-          sed -i 's/android.enablePngCrunchInReleaseBuilds=true/android.enablePngCrunchInReleaseBuilds=false/g' gradle.properties
-
-          # 5. Enable Gradle caching & parallel execution
-          cat >> gradle.properties <<'EOF'
+          # 1. Allocate 4GB RAM in global Gradle properties with parallel GC
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC -XX:MaxMetaspaceSize=1024m
           org.gradle.caching=true
           org.gradle.parallel=true
           org.gradle.vfs.watch=false
           EOF
+
+          # 2. Update android/gradle.properties JVM args
+          sed -i 's/org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC -XX:MaxMetaspaceSize=1024m/g' gradle.properties
+
+          # 3. Restrict C++ CMake compilation to real physical phones (drops x86/x86_64 emulator bloat)
+          sed -i "s/reactNativeArchitectures=.*/reactNativeArchitectures=$ARCHS/g" gradle.properties
+
+          # 4. Disable R8 minification for fast beta builds
+          sed -i 's/android.enableMinifyInReleaseBuilds=true/android.enableMinifyInReleaseBuilds=false/g' gradle.properties
+
+          # 5. Disable slow AAPT2 PNG re-crunching
+          sed -i 's/android.enablePngCrunchInReleaseBuilds=true/android.enablePngCrunchInReleaseBuilds=false/g' gradle.properties
+
+          # 6. Prepend newline and append parallel/caching flags safely without corrupting trailing JSON in watchedDirectories
+          printf '\norg.gradle.caching=true\norg.gradle.parallel=true\norg.gradle.vfs.watch=false\n' >> gradle.properties
 
       - name: 🐘 Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
@@ -88,7 +93,7 @@ jobs:
         run: |
           ARCHS="${{ inputs.architectures || 'arm64-v8a,armeabi-v7a' }}"
           ./gradlew assembleRelease \
-            -PreactNativeArchitectures=$ARCHS \
+            -PreactNativeArchitectures="$ARCHS" \
             -Pandroid.enableMinifyInReleaseBuilds=false \
             -x lint \
             -x lintVitalRelease \
