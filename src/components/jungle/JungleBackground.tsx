@@ -6,7 +6,7 @@ import { withAlpha, shade } from '@/core/theme/color';
 import { LeafCluster } from './LeafCluster';
 import { Vine } from './Vine';
 import { LeafSpec } from './Leaf';
-import { useSway } from './useSway';
+import { useLeafWindSway } from './useSway';
 
 /*
  * Corner clusters. Coordinates are local to each cluster's Svg box.
@@ -39,6 +39,38 @@ const BOTTOM_RIGHT: LeafSpec[] = [
   { variant: 'fern', x: 150, y: 200, rotate: -12, size: 140 },
 ];
 
+const SwayingLeafCluster: React.FC<{
+  width: number;
+  height: number;
+  leaves: LeafSpec[];
+  color: string;
+  style: any;
+  transformOrigin: string;
+  degrees?: number;
+  duration?: number;
+  delay?: number;
+}> = ({
+  width,
+  height,
+  leaves,
+  color,
+  style,
+  transformOrigin,
+  degrees = 2.4,
+  duration = 3800,
+  delay = 0,
+}) => {
+  const rotate = useLeafWindSway(degrees, duration, delay);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[style, { transformOrigin: transformOrigin as any, transform: [{ rotate }] }]}
+    >
+      <LeafCluster width={width} height={height} leaves={leaves} color={color} />
+    </Animated.View>
+  );
+};
+
 const SwayingVine: React.FC<{
   left: number;
   width: number;
@@ -49,7 +81,7 @@ const SwayingVine: React.FC<{
   vineColor: string;
   leafColor: string;
 }> = ({ left, width, height, seed, degrees, duration, vineColor, leafColor }) => {
-  const rotate = useSway(degrees, duration, seed * 400);
+  const rotate = useLeafWindSway(degrees, duration, seed * 400);
   return (
     <Animated.View
       pointerEvents="none"
@@ -98,12 +130,52 @@ export const JungleBackground: React.FC<JungleBackgroundProps> = ({ density = 'f
 
       {/* Leaves kept faint so text stays readable over them */}
       <View style={[styles.layer, { opacity: 0.55 }]}>
-        <LeafCluster width={200} height={200} leaves={TOP_LEFT} color={leafColor} style={[styles.abs, { top: -30, left: -40 }]} />
-        <LeafCluster width={180} height={170} leaves={TOP_RIGHT} color={leafColor} style={[styles.abs, { top: -20, right: -30 }]} />
+        <SwayingLeafCluster
+          width={200}
+          height={200}
+          leaves={TOP_LEFT}
+          color={leafColor}
+          style={[styles.abs, { top: -30, left: -40 }]}
+          transformOrigin="top left"
+          degrees={2.4}
+          duration={3800}
+          delay={0}
+        />
+        <SwayingLeafCluster
+          width={180}
+          height={170}
+          leaves={TOP_RIGHT}
+          color={leafColor}
+          style={[styles.abs, { top: -20, right: -30 }]}
+          transformOrigin="top right"
+          degrees={2.2}
+          duration={4200}
+          delay={400}
+        />
         {full && (
           <>
-            <LeafCluster width={200} height={200} leaves={BOTTOM_LEFT} color={leafColor} style={[styles.abs, { bottom: 40, left: -50 }]} />
-            <LeafCluster width={190} height={200} leaves={BOTTOM_RIGHT} color={leafColor} style={[styles.abs, { bottom: 30, right: -40 }]} />
+            <SwayingLeafCluster
+              width={200}
+              height={200}
+              leaves={BOTTOM_LEFT}
+              color={leafColor}
+              style={[styles.abs, { bottom: 40, left: -50 }]}
+              transformOrigin="bottom left"
+              degrees={2.8}
+              duration={3500}
+              delay={800}
+            />
+            <SwayingLeafCluster
+              width={190}
+              height={200}
+              leaves={BOTTOM_RIGHT}
+              color={leafColor}
+              style={[styles.abs, { bottom: 30, right: -40 }]}
+              transformOrigin="bottom right"
+              degrees={2.5}
+              duration={4000}
+              delay={1200}
+            />
           </>
         )}
       </View>

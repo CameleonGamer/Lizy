@@ -28,7 +28,8 @@ import { THEME_PRESETS } from '@/core/theme/presets';
 import { isNativeLiquidGlassAvailable } from '@/components/glass/glassMode';
 import { ColorPicker } from '@/components/settings/ColorPicker';
 import { DEFAULT_APPEARANCE } from '@/stores/useThemeStore';
-import { ThemePresetName } from '@/types';
+import { ThemePresetName, WindIntensity } from '@/types';
+import { withAlpha } from '@/core/theme/color';
 import { LocalNotifications } from '@/core/notifications/notifications';
 import { APP_VERSION, GITHUB_RELEASES_URL, GITHUB_REPO } from '@/constants/version';
 import { checkForGithubUpdate, ReleaseInfo } from '@/core/updater/githubUpdater';
@@ -59,7 +60,8 @@ import {
   RefreshCw,
   Rocket,
   ExternalLink,
-  Download
+  Download,
+  Wind
 } from 'lucide-react-native';
 
 const THEME_OPTIONS: { name: ThemePresetName; color: string; desc: string }[] = [
@@ -70,6 +72,12 @@ const THEME_OPTIONS: { name: ThemePresetName; color: string; desc: string }[] = 
   { name: 'Forest', color: '#10B981', desc: 'Forêt d’Émeraude & Sauge' },
   { name: 'Gold', color: '#F59E0B', desc: 'Or Impérial & Onyx' },
   { name: 'Minimal', color: '#E4E4E7', desc: 'Monochrome Pur' },
+];
+
+const WIND_INTENSITIES: { value: WindIntensity; label: string; icon: string; desc: string }[] = [
+  { value: 'gentle', label: 'Brise', icon: '🍃', desc: 'Légère' },
+  { value: 'breeze', label: 'Modéré', icon: '🌬️', desc: 'Naturelle' },
+  { value: 'strong', label: 'Rafale', icon: '💨', desc: 'Dynamique' },
 ];
 
 const LEAF_SWATCHES = ['#3E9B4F', '#5DBB46', '#2F7D32', '#86C232', '#1F6F5C', '#4FB0A5', '#B5C335', '#C2703D', '#C93F5B', '#8E6CC9'];
@@ -85,11 +93,15 @@ export default function ProfileScreen() {
     customBackground,
     jungleDecorEnabled,
     liquidGlassEnabled,
+    leafWindEnabled,
+    leafWindIntensity,
     setLeafColor,
     setVineColor,
     setCustomBackground,
     setJungleDecorEnabled,
     setLiquidGlassEnabled,
+    setLeafWindEnabled,
+    setLeafWindIntensity,
     resetAppearance,
   } = useThemeStore();
   const nativeGlass = isNativeLiquidGlassAvailable();
@@ -524,6 +536,81 @@ export default function ProfileScreen() {
             />
           </View>
 
+          {/* Leaf Wind Sway toggle */}
+          <View style={[styles.secSettingRow, { borderColor: currentTheme.colors.borderGlass }]}>
+            <View style={styles.secSettingLeft}>
+              <Wind size={18} color={leafWindEnabled ? (jungleDecorEnabled ? leafColor : currentTheme.colors.primary) : currentTheme.colors.textMuted} />
+              <View style={styles.secSettingTexts}>
+                <Text style={[styles.secSettingTitle, { color: currentTheme.colors.text }]}>
+                  Vent sur les feuilles
+                </Text>
+                <Text style={[styles.secSettingSub, { color: currentTheme.colors.textMuted }]}>
+                  {leafWindEnabled
+                    ? 'Animation active • Feuilles et lianes oscillent doucement'
+                    : 'Désactivé • Végétation statique (économie de batterie)'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={leafWindEnabled}
+              onValueChange={(val) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setLeafWindEnabled(val);
+              }}
+              trackColor={{ false: 'rgba(255,255,255,0.1)', true: jungleDecorEnabled ? leafColor : currentTheme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* Wind Intensity Selector (visible when wind is enabled) */}
+          {leafWindEnabled && (
+            <View style={[styles.windIntensityContainer, { borderColor: currentTheme.colors.borderGlass }]}>
+              <Text style={[styles.windIntensityLabel, { color: currentTheme.colors.textMuted }]}>
+                Intensité du vent
+              </Text>
+              <View style={styles.windChipsRow}>
+                {WIND_INTENSITIES.map((opt) => {
+                  const isSelected = leafWindIntensity === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setLeafWindIntensity(opt.value);
+                      }}
+                      style={[
+                        styles.windChip,
+                        {
+                          backgroundColor: isSelected
+                            ? withAlpha(leafColor, 0.22)
+                            : 'rgba(255, 255, 255, 0.04)',
+                          borderColor: isSelected ? leafColor : currentTheme.colors.borderGlass,
+                        },
+                      ]}
+                    >
+                      <Text style={styles.windChipIcon}>{opt.icon}</Text>
+                      <Text
+                        style={[
+                          styles.windChipLabel,
+                          {
+                            color: isSelected ? currentTheme.colors.text : currentTheme.colors.textMuted,
+                            fontWeight: isSelected ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                      <Text style={[styles.windChipDesc, { color: currentTheme.colors.textMuted }]}>
+                        {opt.desc}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           <ColorPicker
             label="Couleur des feuilles"
             value={leafColor}
@@ -554,7 +641,9 @@ export default function ProfileScreen() {
               vineColor === DEFAULT_APPEARANCE.vineColor &&
               !customBackground &&
               jungleDecorEnabled &&
-              liquidGlassEnabled
+              liquidGlassEnabled &&
+              leafWindEnabled &&
+              leafWindIntensity === DEFAULT_APPEARANCE.leafWindIntensity
             }
             style={styles.resetAppearanceBtn}
           >
@@ -1267,6 +1356,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     lineHeight: 15,
+  },
+  windIntensityContainer: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    marginBottom: 10,
+  },
+  windIntensityLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  windChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  windChip: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  windChipIcon: {
+    fontSize: 18,
+    marginBottom: 4,
+  },
+  windChipLabel: {
+    fontSize: 12.5,
+    marginBottom: 2,
+  },
+  windChipDesc: {
+    fontSize: 9.5,
+    textAlign: 'center',
+    lineHeight: 12,
   },
   modalOverlay: {
     flex: 1,

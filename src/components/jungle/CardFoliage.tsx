@@ -4,7 +4,7 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { LeafCluster } from './LeafCluster';
 import { Vine } from './Vine';
 import { LeafSpec } from './Leaf';
-import { useSway } from './useSway';
+import { useLeafWindSway } from './useSway';
 
 const CORNER_TL: LeafSpec[] = [
   { variant: 'monstera', x: 40, y: 46, rotate: -60, size: 54, tone: 1 },
@@ -40,7 +40,11 @@ export const CardFoliage: React.FC<CardFoliageProps> = ({ variant, back = false 
   const leafColor = useThemeStore((s) => s.leafColor);
   const vineColor = useThemeStore((s) => s.vineColor);
   const [width, setWidth] = useState(0);
-  const sway = useSway(1.2, 3400);
+
+  const swayTL = useLeafWindSway(1.8, 3600, 200);
+  const swayBR = useLeafWindSway(1.6, 3900, 600);
+  const swayTR = useLeafWindSway(1.5, 3300, 400);
+  const swayVine = useLeafWindSway(1.2, 3400, 100);
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width));
 
@@ -48,9 +52,35 @@ export const CardFoliage: React.FC<CardFoliageProps> = ({ variant, back = false 
     // Big leaves peeking from behind the card.
     return (
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <LeafCluster width={90} height={90} leaves={CORNER_TL} color={leafColor} style={[styles.abs, { top: -34, left: -30, opacity: 0.95 }]} />
+        <Animated.View
+          style={[
+            styles.abs,
+            {
+              top: -34,
+              left: -30,
+              opacity: 0.95,
+              transformOrigin: 'top left',
+              transform: [{ rotate: swayTL }],
+            },
+          ]}
+        >
+          <LeafCluster width={90} height={90} leaves={CORNER_TL} color={leafColor} />
+        </Animated.View>
         {variant === 'frame' && (
-          <LeafCluster width={90} height={80} leaves={CORNER_BR} color={leafColor} style={[styles.abs, { bottom: -30, right: -26, opacity: 0.95 }]} />
+          <Animated.View
+            style={[
+              styles.abs,
+              {
+                bottom: -30,
+                right: -26,
+                opacity: 0.95,
+                transformOrigin: 'bottom right',
+                transform: [{ rotate: swayBR }],
+              },
+            ]}
+          >
+            <LeafCluster width={90} height={80} leaves={CORNER_BR} color={leafColor} />
+          </Animated.View>
         )}
       </View>
     );
@@ -59,12 +89,24 @@ export const CardFoliage: React.FC<CardFoliageProps> = ({ variant, back = false 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill} onLayout={onLayout}>
       {(variant === 'frame' || variant === 'vine') && width > 0 && (
-        <Animated.View style={[styles.abs, { top: -6, left: 18, transformOrigin: 'top', transform: [{ rotate: sway }] }]}>
+        <Animated.View style={[styles.abs, { top: -6, left: 18, transformOrigin: 'top', transform: [{ rotate: swayVine }] }]}>
           <Vine kind="draped" width={width - 36} height={34} vineColor={vineColor} leafColor={leafColor} leafEvery={30} leafSize={24} seed={1} />
         </Animated.View>
       )}
       {variant !== 'vine' && (
-        <LeafCluster width={60} height={60} leaves={CORNER_TR} color={leafColor} style={[styles.abs, { top: -22, right: -12 }]} />
+        <Animated.View
+          style={[
+            styles.abs,
+            {
+              top: -22,
+              right: -12,
+              transformOrigin: 'top right',
+              transform: [{ rotate: swayTR }],
+            },
+          ]}
+        >
+          <LeafCluster width={60} height={60} leaves={CORNER_TR} color={leafColor} />
+        </Animated.View>
       )}
     </View>
   );

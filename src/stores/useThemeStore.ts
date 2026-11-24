@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import Storage from 'expo-sqlite/kv-store';
-import { AppTheme, AppearanceSettings, ThemePresetName } from '@/types';
+import { AppTheme, AppearanceSettings, ThemePresetName, WindIntensity } from '@/types';
 import { THEME_PRESETS } from '@/core/theme/presets';
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
@@ -11,6 +11,8 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   vineColor: '#6B5232',
   jungleDecorEnabled: true,
   liquidGlassEnabled: true,
+  leafWindEnabled: true,
+  leafWindIntensity: 'breeze',
 };
 
 interface ThemeState extends AppearanceSettings {
@@ -23,6 +25,8 @@ interface ThemeState extends AppearanceSettings {
   setVineColor: (color: string) => void;
   setJungleDecorEnabled: (enabled: boolean) => void;
   setLiquidGlassEnabled: (enabled: boolean) => void;
+  setLeafWindEnabled: (enabled: boolean) => void;
+  setLeafWindIntensity: (intensity: WindIntensity) => void;
   resetAppearance: () => void;
 }
 
@@ -67,6 +71,8 @@ export const useThemeStore = create<ThemeState>()(
       setVineColor: (vineColor) => set({ vineColor }),
       setJungleDecorEnabled: (jungleDecorEnabled) => set({ jungleDecorEnabled }),
       setLiquidGlassEnabled: (liquidGlassEnabled) => set({ liquidGlassEnabled }),
+      setLeafWindEnabled: (leafWindEnabled) => set({ leafWindEnabled }),
+      setLeafWindIntensity: (leafWindIntensity) => set({ leafWindIntensity }),
 
       resetAppearance: () => set({ ...DEFAULT_APPEARANCE, currentTheme: buildTheme(DEFAULT_APPEARANCE) }),
     }),
@@ -81,10 +87,26 @@ export const useThemeStore = create<ThemeState>()(
         vineColor: s.vineColor,
         jungleDecorEnabled: s.jungleDecorEnabled,
         liquidGlassEnabled: s.liquidGlassEnabled,
+        leafWindEnabled: s.leafWindEnabled,
+        leafWindIntensity: s.leafWindIntensity,
       }),
-      merge: (persisted, current) => {
-        const merged = { ...current, ...(persisted as Partial<AppearanceSettings>) };
-        return { ...merged, currentTheme: buildTheme(merged) };
+      merge: (persisted, current): ThemeState => {
+        const p = (persisted as Partial<AppearanceSettings>) || {};
+        const settings: AppearanceSettings = {
+          presetName: p.presetName || current.presetName,
+          customBackground: p.customBackground !== undefined ? p.customBackground : current.customBackground,
+          leafColor: p.leafColor || current.leafColor,
+          vineColor: p.vineColor || current.vineColor,
+          jungleDecorEnabled: p.jungleDecorEnabled !== undefined ? p.jungleDecorEnabled : current.jungleDecorEnabled,
+          liquidGlassEnabled: p.liquidGlassEnabled !== undefined ? p.liquidGlassEnabled : current.liquidGlassEnabled,
+          leafWindEnabled: p.leafWindEnabled !== undefined ? p.leafWindEnabled : current.leafWindEnabled,
+          leafWindIntensity: p.leafWindIntensity || current.leafWindIntensity,
+        };
+        return {
+          ...current,
+          ...settings,
+          currentTheme: buildTheme(settings),
+        };
       },
     }
   )

@@ -36,6 +36,8 @@ export interface AppTheme {
   borderRadius: number;
 }
 
+export type WindIntensity = 'gentle' | 'breeze' | 'strong';
+
 /**
  * User-tunable appearance settings (persisted on device).
  */
@@ -51,6 +53,10 @@ export interface AppearanceSettings {
   jungleDecorEnabled: boolean;
   /** Liquid Glass buttons / bars. When off, controls become solid. */
   liquidGlassEnabled: boolean;
+  /** Enable wind sway animation on vector leaves. */
+  leafWindEnabled: boolean;
+  /** Intensity of the wind animation on leaves ('gentle', 'breeze', 'strong'). */
+  leafWindIntensity: WindIntensity;
 }
 
 // ------------------------------------------
