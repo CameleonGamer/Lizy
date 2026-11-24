@@ -12,11 +12,14 @@ import { AppLockModal } from '@/components/security/AppLockModal';
 import { LevelUpModal } from '@/components/gaming/LevelUpModal';
 
 function AuthNavigationGuard() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isInitialized } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    // Only navigate once initial hardware secure session check completes
+    if (!isInitialized) return;
+
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && !inAuthGroup) {
@@ -24,7 +27,7 @@ function AuthNavigationGuard() {
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, segments]);
+  }, [isAuthenticated, isInitialized, segments]);
 
   return null;
 }
@@ -36,9 +39,11 @@ export default function RootLayout() {
   const [isBackgrounded, setIsBackgrounded] = useState(false);
 
   useEffect(() => {
-    // Record streak / daily login on app boot
+    // 1. Restore auth session from hardware-backed secure storage
+    useAuthStore.getState().restoreSession();
+    // 2. Record streak / daily login on app boot
     recordDailyActivity();
-    // Load hardware security settings (PIN & Privacy Shield)
+    // 3. Load hardware security settings (PIN & Privacy Shield)
     loadSecuritySettings();
 
     // AppState listener for privacy shield and auto-lock

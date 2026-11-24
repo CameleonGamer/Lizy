@@ -99,8 +99,8 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
         ent: 'PRONOTE_QR_CODE',
       });
 
-      // Set user session
-      setSession(result.user, 'qr-token-session-' + Date.now());
+      // Set user session in RAM and Hardware SecureStore
+      await setSession(result.user, 'qr-token-session-' + Date.now(), 'qrcode', scannedPayload.url);
 
       // Sync real grades, averages, homework, timetable
       syncRealData({

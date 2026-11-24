@@ -40,11 +40,15 @@ export const SchoolFinderModal: React.FC<SchoolFinderModalProps> = ({
   const [schools, setSchools] = useState<SchoolEstablishment[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const searchTimeoutRef = React.useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
       handleDetectLocation();
     }
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
   }, [visible]);
 
   const handleDetectLocation = async () => {
@@ -59,19 +63,26 @@ export const SchoolFinderModal: React.FC<SchoolFinderModalProps> = ({
     }
   };
 
-  const handleSearch = async (text: string) => {
+  const handleSearch = (text: string) => {
     setSearchQuery(text);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
     if (!text.trim()) {
       handleDetectLocation();
       return;
     }
+
     setLoading(true);
-    try {
-      const results = await SchoolDirectory.searchSchools(text);
-      setSchools(results);
-    } finally {
-      setLoading(false);
-    }
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await SchoolDirectory.searchSchools(text);
+        setSchools(results);
+      } finally {
+        setLoading(false);
+      }
+    }, 280);
   };
 
   const handlePickSchool = (school: SchoolEstablishment) => {

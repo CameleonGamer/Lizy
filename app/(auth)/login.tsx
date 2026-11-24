@@ -97,12 +97,14 @@ export default function LoginScreen() {
       });
 
       const session = pronoteClient.getSession();
-      setSession(
+      await setSession(
         {
           ...user,
           establishment: selectedSchool.name,
         },
-        session ? session.token : 'token-ram-' + Date.now()
+        session ? session.token : 'token-ram-' + Date.now(),
+        'direct',
+        url.trim()
       );
 
       router.replace('/(tabs)');
@@ -130,16 +132,18 @@ export default function LoginScreen() {
     setWebViewModalVisible(true);
   };
 
-  const handleDemoAccess = () => {
+  const handleDemoAccess = async () => {
     useDataStore.getState().loadDemoData();
-    setSession(
+    await setSession(
       {
         id: 'demo-student',
         name: 'Alexandre Martin',
         establishment: selectedSchool.name,
         studentClass: 'Terminale Générale',
       },
-      'demo-token-ram'
+      'demo-token-ram',
+      'demo',
+      url.trim()
     );
     router.replace('/(tabs)');
   };
@@ -410,6 +414,7 @@ export default function LoginScreen() {
         visible={webViewModalVisible}
         initialUrl={url.trim()}
         entName={selectedEnt.name}
+        schoolName={selectedSchool.name}
         onClose={() => setWebViewModalVisible(false)}
         onSuccess={() => {
           setWebViewModalVisible(false);

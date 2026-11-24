@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import Storage from 'expo-sqlite/kv-store';
 import { Grade, Homework, TimetableLesson, PronoteMessage, SubjectAverage } from '@/types';
 import { sortHomeworkByDueDate } from '@/core/utils/dateUtils';
 
@@ -135,88 +137,104 @@ interface DataState {
   addTimetableEvent: (event: Omit<TimetableLesson, 'id' | 'isCustomEvent'>) => void;
 }
 
-export const useDataStore = create<DataState>((set) => ({
-  // Real initial state starts EMPTY to avoid displaying fake dummy info
-  grades: [],
-  homework: [],
-  timetable: [],
-  messages: [],
-  averages: [],
-  generalAverage: 0,
-  isLoading: false,
-
-  clearDataForRealUser: () => {
-    set({
+export const useDataStore = create<DataState>()(
+  persist(
+    (set) => ({
+      // Real initial state starts EMPTY to avoid displaying fake dummy info
       grades: [],
       homework: [],
       timetable: [],
       messages: [],
       averages: [],
       generalAverage: 0,
-      isLoading: true,
-    });
-  },
-
-  loadDemoData: () => {
-    set({
-      ...MOCK_DATA,
       isLoading: false,
-    });
-  },
 
-  syncRealData: (payload) => {
-    set((state) => ({
-      ...state,
-      ...payload,
-      grades: payload.grades !== undefined ? payload.grades : state.grades,
-      homework: payload.homework !== undefined ? sortHomeworkByDueDate(payload.homework) : state.homework,
-      timetable: payload.timetable !== undefined ? payload.timetable : state.timetable,
-      messages: payload.messages !== undefined ? payload.messages : state.messages,
-      averages: payload.averages !== undefined ? payload.averages : state.averages,
-      generalAverage: payload.generalAverage !== undefined ? payload.generalAverage : state.generalAverage,
-      isLoading: false,
-    }));
-  },
+      clearDataForRealUser: () => {
+        set({
+          grades: [],
+          homework: [],
+          timetable: [],
+          messages: [],
+          averages: [],
+          generalAverage: 0,
+          isLoading: false,
+        });
+      },
 
-  toggleHomework: (id: string) => {
-    set((state) => ({
-      homework: state.homework.map((hw) =>
-        hw.id === id ? { ...hw, completed: !hw.completed } : hw
-      ),
-    }));
-  },
+      loadDemoData: () => {
+        set({
+          ...MOCK_DATA,
+          isLoading: false,
+        });
+      },
 
-  toggleSubtask: (homeworkId: string, subtaskId: string) => {
-    set((state) => ({
-      homework: state.homework.map((hw) => {
-        if (hw.id !== homeworkId) return hw;
-        return {
-          ...hw,
-          subtasks: hw.subtasks.map((st) =>
-            st.id === subtaskId ? { ...st, completed: !st.completed } : st
+      syncRealData: (payload) => {
+        set((state) => ({
+          ...state,
+          ...payload,
+          grades: payload.grades !== undefined ? payload.grades : state.grades,
+          homework: payload.homework !== undefined ? sortHomeworkByDueDate(payload.homework) : state.homework,
+          timetable: payload.timetable !== undefined ? payload.timetable : state.timetable,
+          messages: payload.messages !== undefined ? payload.messages : state.messages,
+          averages: payload.averages !== undefined ? payload.averages : state.averages,
+          generalAverage: payload.generalAverage !== undefined ? payload.generalAverage : state.generalAverage,
+          isLoading: false,
+        }));
+      },
+
+      toggleHomework: (id: string) => {
+        set((state) => ({
+          homework: state.homework.map((hw) =>
+            hw.id === id ? { ...hw, completed: !hw.completed } : hw
           ),
+        }));
+      },
+
+      toggleSubtask: (homeworkId: string, subtaskId: string) => {
+        set((state) => ({
+          homework: state.homework.map((hw) => {
+            if (hw.id !== homeworkId) return hw;
+            return {
+              ...hw,
+              subtasks: hw.subtasks.map((st) =>
+                st.id === subtaskId ? { ...st, completed: !st.completed } : st
+              ),
+            };
+          }),
+        }));
+      },
+
+      addPersonalHomework: (item) => {
+        const newHw: Homework = {
+          ...item,
+          id: `hw-perso-${Date.now()}`,
+          isPersonal: true,
+          completed: false,
+          subtasks: [],
         };
+        set((state) => ({ homework: sortHomeworkByDueDate([newHw, ...state.homework]) }));
+      },
+
+      addTimetableEvent: (event) => {
+        const newLesson: TimetableLesson = {
+          ...event,
+          id: `tt-custom-${Date.now()}`,
+          isCustomEvent: true,
+        };
+        set((state) => ({ timetable: [...state.timetable, newLesson] }));
+      },
+    }),
+    {
+      name: 'lizy-academic-data-storage',
+      storage: createJSONStorage(() => Storage),
+      partialize: (state) => ({
+        grades: state.grades,
+        homework: state.homework,
+        timetable: state.timetable,
+        messages: state.messages,
+        averages: state.averages,
+        generalAverage: state.generalAverage,
       }),
-    }));
-  },
-
-  addPersonalHomework: (item) => {
-    const newHw: Homework = {
-      ...item,
-      id: `hw-perso-${Date.now()}`,
-      isPersonal: true,
-      completed: false,
-      subtasks: [],
-    };
-    set((state) => ({ homework: sortHomeworkByDueDate([newHw, ...state.homework]) }));
-  },
-
-  addTimetableEvent: (event) => {
-    const newLesson: TimetableLesson = {
-      ...event,
-      id: `tt-custom-${Date.now()}`,
-      isCustomEvent: true,
-    };
-    set((state) => ({ timetable: [...state.timetable, newLesson] }));
-  },
-}));
+    }
+  )
+);
