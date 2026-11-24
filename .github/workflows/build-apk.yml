@@ -5,26 +5,32 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      architectures:
+        description: 'Android architectures to compile (default: arm64-v8a,armeabi-v7a)'
+        required: false
+        default: 'arm64-v8a,armeabi-v7a'
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: android-beta-${{ github.ref }}
+  group: android-apk-build
   cancel-in-progress: true
 
 jobs:
   build:
     name: Build & Release Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
 
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
       - name: ☕ Setup Java (JDK 17)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -39,7 +45,7 @@ jobs:
         run: npm ci --legacy-peer-deps --prefer-offline
 
       - name: 🛠️ Generate Android project
-        run: npx expo prebuild --platform android --clean --no-install
+        run: npx expo prebuild --platform android --no-install
 
       - name: 🔑 Configure signing
         run: |
@@ -47,30 +53,48 @@ jobs:
             's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' \
             android/app/build.gradle || true
 
+      - name: ⚡ Configure Gradle & Speed Optimizations
+        working-directory: android
+        run: |
+          ARCHS="${{ inputs.architectures || 'arm64-v8a,armeabi-v7a' }}"
+          echo "Compiling target architectures: $ARCHS"
+
+          # 1. Allocate 4GB RAM to Gradle with parallel GC to prevent GC pauses
+          sed -i 's/org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC -XX:MaxMetaspaceSize=1024m/g' gradle.properties
+
+          # 2. Restrict C++ CMake compilation to real physical phones (drops x86/x86_64 emulator bloat)
+          sed -i "s/reactNativeArchitectures=.*/reactNativeArchitectures=$ARCHS/g" gradle.properties
+
+          # 3. Disable R8 minification for fast beta builds
+          sed -i 's/android.enableMinifyInReleaseBuilds=true/android.enableMinifyInReleaseBuilds=false/g' gradle.properties
+
+          # 4. Disable slow AAPT2 PNG re-crunching
+          sed -i 's/android.enablePngCrunchInReleaseBuilds=true/android.enablePngCrunchInReleaseBuilds=false/g' gradle.properties
+
+          # 5. Enable Gradle caching & parallel execution
+          cat >> gradle.properties <<'EOF'
+          org.gradle.caching=true
+          org.gradle.parallel=true
+          org.gradle.vfs.watch=false
+          EOF
+
       - name: 🐘 Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-cleanup: on-success
 
-      - name: ⚡ Configure Gradle
-        working-directory: android
-        run: |
-          mkdir -p ~/.gradle
-          cat >> ~/.gradle/gradle.properties <<'EOF'
-          org.gradle.caching=true
-          org.gradle.parallel=true
-          org.gradle.daemon=true
-          org.gradle.configureondemand=true
-          EOF
-
       - name: 🔨 Build optimized APK
         working-directory: android
         run: |
+          ARCHS="${{ inputs.architectures || 'arm64-v8a,armeabi-v7a' }}"
           ./gradlew assembleRelease \
+            -PreactNativeArchitectures=$ARCHS \
+            -Pandroid.enableMinifyInReleaseBuilds=false \
+            -x lint \
+            -x lintVitalRelease \
             --build-cache \
             --parallel \
-            --daemon \
-            --max-workers=2
+            --no-daemon
 
       - name: 📋 Prepare APK
         run: |
