@@ -106,9 +106,31 @@ const MOCK_DATA = {
       id: 'msg-demo-1',
       author: 'Vie Scolaire',
       subject: 'Absence justifiée',
-      content: 'Le justificatif a été validé.',
+      content: 'Le justificatif pour votre absence du 12 novembre a été validé par le service de la vie scolaire.',
       date: 'Hier',
       read: true,
+      category: 'Vie Scolaire',
+      avatarColor: '#10B981',
+    },
+    {
+      id: 'msg-demo-2',
+      author: 'M. Dupont (Mathématiques)',
+      subject: 'Fiches de révision DS - Équations différentielles',
+      content: 'Bonjour à tous, les fiches méthodologiques et les corrigés d’exercices d’entraînement sont en ligne. Pensez à revoir les démonstrations de cours avant le devoir surveillé.',
+      date: '10 nov.',
+      read: false,
+      category: 'Professeur',
+      avatarColor: '#38BDF8',
+    },
+    {
+      id: 'msg-demo-3',
+      author: 'Direction de l’établissement',
+      subject: 'Organisation des épreuves blanches & conseils de classe',
+      content: 'Chers élèves, le calendrier des conseils de classe du premier trimestre ainsi que le planning des épreuves blanches sont désormais arrêtés. Consultez l’affichage officiel.',
+      date: '04 nov.',
+      read: false,
+      category: 'Direction',
+      avatarColor: '#F59E0B',
     },
   ],
 };
@@ -131,6 +153,7 @@ interface DataState {
     averages?: SubjectAverage[];
     generalAverage?: number;
   }) => void;
+  markMessageAsRead: (id: string) => void;
   toggleHomework: (id: string) => void;
   toggleSubtask: (homeworkId: string, subtaskId: string) => void;
   addPersonalHomework: (item: Omit<Homework, 'id' | 'isPersonal' | 'completed' | 'subtasks'>) => void;
@@ -179,6 +202,14 @@ export const useDataStore = create<DataState>()(
           averages: payload.averages !== undefined ? payload.averages : state.averages,
           generalAverage: payload.generalAverage !== undefined ? payload.generalAverage : state.generalAverage,
           isLoading: false,
+        }));
+      },
+
+      markMessageAsRead: (id: string) => {
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === id ? { ...m, read: true } : m
+          ),
         }));
       },
 

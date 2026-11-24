@@ -14,11 +14,13 @@ import {
   Trophy 
 } from 'lucide-react-native';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { useDataStore } from '@/stores/useDataStore';
 import { useGlassMode } from '@/components/glass/glassMode';
 import { withAlpha } from '@/core/theme/color';
 
 export default function TabsLayout() {
   const { currentTheme, leafColor } = useThemeStore();
+  const unreadMessagesCount = useDataStore((s) => s.messages.filter((m) => !m.read).length);
   const glassMode = useGlassMode();
   const insets = useSafeAreaInsets();
 
@@ -112,6 +114,12 @@ export default function TabsLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: ({ color, size }) => <MessageSquare size={size - 2} color={color} />,
+          tabBarBadge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: currentTheme.colors.primary,
+            fontSize: 10,
+            fontWeight: '700',
+          },
         }}
       />
       <Tabs.Screen

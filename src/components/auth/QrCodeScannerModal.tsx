@@ -102,13 +102,14 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
       // Set user session in RAM and Hardware SecureStore
       await setSession(result.user, 'qr-token-session-' + Date.now(), 'qrcode', scannedPayload.url);
 
-      // Sync real grades, averages, homework, timetable
+      // Sync real grades, averages, homework, timetable, messages
       syncRealData({
         grades: result.grades,
         averages: result.averages,
         generalAverage: result.generalAverage,
         homework: result.homework,
         timetable: result.timetable,
+        messages: result.messages,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

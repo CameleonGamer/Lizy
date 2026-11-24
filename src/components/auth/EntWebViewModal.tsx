@@ -51,7 +51,20 @@ const INJECTED_RPC_SNIFFER = `
       this.addEventListener('load', function() {
         try {
           var text = this.responseText;
-          if (text && (text.includes('donnees') || text.includes('listeDevoirs') || text.includes('listeServices') || text.includes('listeNotes') || text.includes('moyenneGenerale') || text.includes('donneesSecurite'))) {
+          if (text && (
+            text.includes('donnees') ||
+            text.includes('listeDevoirs') ||
+            text.includes('listeServices') ||
+            text.includes('listeNotes') ||
+            text.includes('moyenneGenerale') ||
+            text.includes('donneesSecurite') ||
+            text.includes('listeActualites') ||
+            text.includes('listeInformations') ||
+            text.includes('listeDiscussions') ||
+            text.includes('PageActualites') ||
+            text.includes('PageDiscussions') ||
+            text.includes('listeMessages')
+          )) {
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'PRONOTE_RPC_RESPONSE',
               url: this._targetUrl,
@@ -73,7 +86,20 @@ const INJECTED_RPC_SNIFFER = `
           try {
             var clone = response.clone();
             clone.text().then(function(text) {
-              if (text && (text.includes('donnees') || text.includes('listeDevoirs') || text.includes('listeServices') || text.includes('listeNotes') || text.includes('moyenneGenerale') || text.includes('donneesSecurite'))) {
+              if (text && (
+                text.includes('donnees') ||
+                text.includes('listeDevoirs') ||
+                text.includes('listeServices') ||
+                text.includes('listeNotes') ||
+                text.includes('moyenneGenerale') ||
+                text.includes('donneesSecurite') ||
+                text.includes('listeActualites') ||
+                text.includes('listeInformations') ||
+                text.includes('listeDiscussions') ||
+                text.includes('PageActualites') ||
+                text.includes('PageDiscussions') ||
+                text.includes('listeMessages')
+              )) {
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'PRONOTE_RPC_RESPONSE',
                   url: requestUrl,
@@ -158,8 +184,65 @@ const INJECTED_RPC_SNIFFER = `
       } catch(e) {}
     }
 
+    // 4. Scan DOM for visible school communications & announcements
+    function scanDomMessages() {
+      try {
+        var msgs = [];
+        if (window.GExportation) {
+          var rawList = window.GExportation.listeActualites || window.GExportation.listeInformations || window.GExportation.actualites;
+          if (Array.isArray(rawList)) {
+            for (var k = 0; k < rawList.length; k++) {
+              var a = rawList[k];
+              if (a) {
+                msgs.push({
+                  id: 'dom-act-' + (a.N || k),
+                  author: a.auteur || a.emetteur || 'Vie Scolaire',
+                  subject: a.L || a.titre || 'Information établissement',
+                  content: a.texte || a.descriptif || '',
+                  date: a.dateCreation || a.date || 'Récemment',
+                  read: Boolean(a.lue || a.estLu)
+                });
+              }
+            }
+          }
+        }
+
+        if (msgs.length === 0) {
+          var items = document.querySelectorAll('.ibe_actu, .ibe_actualite, [id*="Actualite"], .communication-item');
+          for (var m = 0; m < items.length && m < 15; m++) {
+            var it = items[m];
+            var titleEl = it.querySelector('.titre, .objet, h3, h4, .ibe_actu_titre');
+            var authorEl = it.querySelector('.auteur, .emetteur, .ibe_actu_auteur');
+            var descEl = it.querySelector('.descriptif, .texte, .contenu, p');
+            var dateEl = it.querySelector('.date, .ibe_actu_date, time');
+
+            var title = titleEl ? titleEl.innerText.trim() : (it.innerText ? it.innerText.split('\\n')[0] : '');
+            if (title) {
+              msgs.push({
+                id: 'dom-msg-' + m,
+                author: authorEl ? authorEl.innerText.trim() : 'Vie Scolaire',
+                subject: title,
+                content: descEl ? descEl.innerText.trim() : it.innerText.trim(),
+                date: dateEl ? dateEl.innerText.trim() : 'Récemment',
+                read: true
+              });
+            }
+          }
+        }
+
+        if (msgs.length > 0) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'PRONOTE_MESSAGES_FOUND',
+            messages: msgs
+          }));
+        }
+      } catch(e) {}
+    }
+
     setInterval(scanDomIdentity, 1200);
+    setInterval(scanDomMessages, 2000);
     setTimeout(scanDomIdentity, 600);
+    setTimeout(scanDomMessages, 1500);
   })();
   true;
 `;
@@ -233,6 +316,16 @@ export const EntWebViewModal: React.FC<EntWebViewModalProps> = ({
         const ttList = PronoteParser.parseTimetable(rawRpc);
         if (ttList.length > 0) {
           syncRealData({ timetable: ttList });
+        }
+
+        // 5. Parse school messages & communications
+        const msgList = PronoteParser.parseMessages(rawRpc);
+        if (msgList.length > 0) {
+          syncRealData({ messages: msgList });
+        }
+      } else if (payload.type === 'PRONOTE_MESSAGES_FOUND') {
+        if (Array.isArray(payload.messages) && payload.messages.length > 0) {
+          syncRealData({ messages: payload.messages });
         }
       } else if (payload.type === 'PRONOTE_IDENTITY_FOUND') {
         setCanSyncNow(true);

@@ -7,7 +7,7 @@
  */
 
 import { PronoteClient, PronoteQrPayload } from './pronoteClient';
-import { Grade, Homework, TimetableLesson, SubjectAverage, PronoteUser } from '@/types';
+import { Grade, Homework, TimetableLesson, SubjectAverage, PronoteUser, PronoteMessage } from '@/types';
 
 export { PronoteQrPayload };
 
@@ -58,6 +58,7 @@ export const PronoteQrAuth = {
     generalAverage: number;
     homework: Homework[];
     timetable: TimetableLesson[];
+    messages: PronoteMessage[];
   }> {
     const client = new PronoteClient();
     return await client.authenticateWithQr(payload, pin);

@@ -11,7 +11,7 @@ import CryptoJS from 'crypto-js';
 import * as Crypto from 'expo-crypto';
 import pako from 'pako';
 import { PRONOTE_APP_USER_AGENT } from './constants';
-import { Grade, Homework, TimetableLesson, SubjectAverage, PronoteUser } from '@/types';
+import { Grade, Homework, TimetableLesson, SubjectAverage, PronoteUser, PronoteMessage } from '@/types';
 import { SecureStorage } from '../security/secureStorage';
 import { cleanPronoteHtml } from '../utils/htmlSanitizer';
 import { sortHomeworkByDueDate } from '../utils/dateUtils';
@@ -327,6 +327,7 @@ export class PronoteClient {
     generalAverage: number;
     homework: Homework[];
     timetable: TimetableLesson[];
+    messages: PronoteMessage[];
   }> {
     // 1. Decrypt credentials from QR Code
     const decryptedLogin = PronoteClient.decryptQrField(payload.login, pin);
@@ -816,6 +817,60 @@ export class PronoteClient {
       console.warn('Erreur lors de la récupération des devoirs:', err);
     }
 
+    // 12. Fetch Announcements & Messages (PageActualites on onglet 8)
+    const messages: PronoteMessage[] = [];
+    try {
+      const actRes = await this.postRpc('PageActualites', 8, {
+        domaine: { _T: 8, V: '[0..15]' },
+      });
+      const actData = actRes?.dataSec?.data;
+      if (actData) {
+        const rawActs =
+          actData?.listeActualites?.V ||
+          actData?.listeActualites ||
+          actData?.listeInformations?.V ||
+          actData?.listeInformations ||
+          [];
+
+        if (Array.isArray(rawActs)) {
+          rawActs.forEach((act: any, idx: number) => {
+            const author = act?.auteur?.V || act?.auteur?.L || act?.auteur || act?.emetteur || 'Vie Scolaire';
+            const subject = act?.L?.V || act?.L || act?.titre || 'Information établissement';
+            const rawContent = act?.texte?.V || act?.texte || act?.descriptif || '';
+            const content = cleanPronoteHtml(rawContent) || subject;
+            let date = act?.dateCreation?.V || act?.dateCreation || act?.date?.V || act?.date || 'Récemment';
+            if (typeof date === 'string' && date.includes(' ')) {
+              date = date.split(' ')[0];
+            }
+
+            let category = 'Vie Scolaire';
+            let avatarColor = '#10B981';
+            const lowerAuth = String(author).toLowerCase();
+            if (lowerAuth.includes('prof') || lowerAuth.includes('m.') || lowerAuth.includes('mme')) {
+              category = 'Professeur';
+              avatarColor = '#38BDF8';
+            } else if (lowerAuth.includes('direct') || lowerAuth.includes('proviseur')) {
+              category = 'Direction';
+              avatarColor = '#F59E0B';
+            }
+
+            messages.push({
+              id: `msg-qr-${act?.N || act?.id || idx}`,
+              author: String(author),
+              subject: String(subject),
+              content,
+              date: String(date),
+              read: Boolean(act?.lue?.V ?? act?.lue ?? true),
+              category,
+              avatarColor,
+            });
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Erreur lors de la récupération des actualités Pronote:', err);
+    }
+
     return {
       user,
       grades,
@@ -823,6 +878,7 @@ export class PronoteClient {
       generalAverage,
       homework: sortHomeworkByDueDate(homework),
       timetable,
+      messages,
     };
   }
 }

@@ -122,6 +122,8 @@ export interface PronoteMessage {
   content: string;
   date: string;
   read: boolean;
+  category?: string;
+  avatarColor?: string;
 }
 
 // ------------------------------------------

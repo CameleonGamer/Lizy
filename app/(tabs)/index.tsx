@@ -35,7 +35,8 @@ import {
   Target,
   BarChart2,
   LogIn,
-  Compass
+  Compass,
+  MessageSquare
 } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -52,7 +53,7 @@ export default function DashboardScreen() {
   const { currentTheme } = useThemeStore();
   const { activeLayout, setLayoutPreset } = useWidgetStore();
   const { xp, level, streakDays, claimHomeworkXp } = useGamingStore();
-  const { generalAverage, averages, homework, timetable, toggleHomework } = useDataStore();
+  const { generalAverage, averages, homework, timetable, messages, toggleHomework } = useDataStore();
   const { user } = useAuthStore();
 
   const [focusModalVisible, setFocusModalVisible] = useState(false);
@@ -342,6 +343,62 @@ export default function DashboardScreen() {
               ))
             )}
           </GlassCard>
+
+          {/* Pronote Messages & Communications Widget */}
+          <GlassCard style={styles.card}>
+            <View style={styles.widgetHeader}>
+              <View style={styles.titleRow}>
+                <MessageSquare size={18} color={currentTheme.colors.primary} />
+                <Text style={[styles.widgetTitle, { color: currentTheme.colors.text }]}>
+                  Communications Pronote
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/messages')}>
+                <Text style={[styles.badgeText, { color: currentTheme.colors.primary }]}>
+                  {messages.length > 0 ? `Tous (${messages.length}) ›` : 'Ouvrir ›'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {messages.length === 0 ? (
+              <TouchableOpacity onPress={() => router.push('/(tabs)/messages')}>
+                <Text style={[styles.subText, { color: currentTheme.colors.textMuted, paddingVertical: 4 }]}>
+                  Aucun message pour le moment • Consulter la boîte de réception ›
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.dashboardMsgList}>
+                {messages.slice(0, 2).map((msg) => (
+                  <TouchableOpacity
+                    key={msg.id}
+                    activeOpacity={0.75}
+                    onPress={() => router.push('/(tabs)/messages')}
+                    style={styles.dashboardMsgItem}
+                  >
+                    <View style={styles.dashboardMsgHeader}>
+                      <View style={styles.dashboardMsgAuthorRow}>
+                        {!msg.read && (
+                          <View style={[styles.dashboardUnreadDot, { backgroundColor: currentTheme.colors.primary }]} />
+                        )}
+                        <Text numberOfLines={1} style={[styles.dashboardMsgAuthor, { color: currentTheme.colors.text }]}>
+                          {msg.author}
+                        </Text>
+                      </View>
+                      <Text style={[styles.dashboardMsgDate, { color: currentTheme.colors.textMuted }]}>
+                        {msg.date}
+                      </Text>
+                    </View>
+                    <Text numberOfLines={1} style={[styles.dashboardMsgSubject, { color: currentTheme.colors.text }]}>
+                      {msg.subject}
+                    </Text>
+                    <Text numberOfLines={2} style={[styles.dashboardMsgPreview, { color: currentTheme.colors.textMuted }]}>
+                      {msg.content}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </GlassCard>
         </View>
       </ScrollView>
 
@@ -592,5 +649,48 @@ const styles = StyleSheet.create({
   demoAlertText: {
     fontSize: 13,
     flex: 1,
+  },
+  dashboardMsgList: {
+    marginTop: 6,
+    gap: 10,
+  },
+  dashboardMsgItem: {
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  dashboardMsgHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dashboardMsgAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    marginRight: 8,
+  },
+  dashboardUnreadDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  dashboardMsgAuthor: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  dashboardMsgDate: {
+    fontSize: 11,
+  },
+  dashboardMsgSubject: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  dashboardMsgPreview: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

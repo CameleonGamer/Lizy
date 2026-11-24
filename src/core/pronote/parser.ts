@@ -1,4 +1,4 @@
-import { Grade, Homework, TimetableLesson, SubjectAverage } from '@/types';
+import { Grade, Homework, TimetableLesson, SubjectAverage, PronoteMessage } from '@/types';
 import { cleanPronoteHtml } from '../utils/htmlSanitizer';
 import { sortHomeworkByDueDate } from '../utils/dateUtils';
 
@@ -272,6 +272,98 @@ export const PronoteParser = {
             return a.date.localeCompare(b.date);
           }
           return a.startTime.localeCompare(b.startTime);
+        });
+      }
+    } catch {}
+    return list;
+  },
+
+  /**
+   * Parses official communications, announcements, and messages from Pronote JSON
+   */
+  parseMessages(raw: any): PronoteMessage[] {
+    const list: PronoteMessage[] = [];
+    try {
+      const unwrapped = this.unwrap(raw);
+      const donnees = unwrapped?.donnees || unwrapped?.data || unwrapped;
+
+      // 1. Check for listeActualites / listeInformations / listeSondages
+      const rawActs =
+        donnees?.listeActualites ||
+        donnees?.listeInformations ||
+        donnees?.actualites ||
+        donnees?.informations ||
+        [];
+
+      if (Array.isArray(rawActs)) {
+        rawActs.forEach((act: any, idx: number) => {
+          const author = act?.auteur?.L || act?.auteur || act?.emetteur || act?.service || 'Vie Scolaire';
+          const subject = act?.L || act?.titre || act?.objet || 'Information établissement';
+          const rawContent = act?.texte || act?.descriptif || act?.contenu || '';
+          const content = cleanPronoteHtml(rawContent) || 'Information de votre établissement.';
+
+          let date = act?.dateCreation || act?.date || act?.dateDebut || 'Récemment';
+          if (typeof date === 'string' && date.includes(' ')) {
+            date = date.split(' ')[0];
+          }
+
+          let category = 'Vie Scolaire';
+          let avatarColor = '#10B981';
+          const lowerAuth = String(author).toLowerCase();
+          if (lowerAuth.includes('prof') || lowerAuth.includes('m.') || lowerAuth.includes('mme')) {
+            category = 'Professeur';
+            avatarColor = '#38BDF8';
+          } else if (lowerAuth.includes('direct') || lowerAuth.includes('proviseur') || lowerAuth.includes('principal')) {
+            category = 'Direction';
+            avatarColor = '#F59E0B';
+          }
+
+          list.push({
+            id: `msg-act-${act?.N || act?.id || idx}`,
+            author: String(author),
+            subject: String(subject),
+            content,
+            date: String(date),
+            read: Boolean(act?.lue ?? act?.estLu ?? false),
+            category,
+            avatarColor,
+          });
+        });
+      }
+
+      // 2. Check for listeDiscussions / listeMessagerie / listeMessages
+      const rawDiscussions =
+        donnees?.listeDiscussions ||
+        donnees?.discussions ||
+        donnees?.listeMessages ||
+        [];
+
+      if (Array.isArray(rawDiscussions)) {
+        rawDiscussions.forEach((disc: any, idx: number) => {
+          const author = disc?.intervenant?.L || disc?.intervenants || disc?.auteur || disc?.destinataire || 'Enseignant';
+          const subject = disc?.L || disc?.objet || disc?.theme || 'Discussion Pronote';
+          const lastMsg = Array.isArray(disc?.listeMessages) && disc.listeMessages.length > 0
+            ? disc.listeMessages[disc.listeMessages.length - 1]
+            : null;
+
+          const rawContent = lastMsg?.texte || disc?.dernierMessage || disc?.texte || '';
+          const content = cleanPronoteHtml(rawContent) || 'Message Pronote';
+
+          let date = lastMsg?.date || disc?.date || disc?.dateDernierMessage || 'Récemment';
+          if (typeof date === 'string' && date.includes(' ')) {
+            date = date.split(' ')[0];
+          }
+
+          list.push({
+            id: `msg-disc-${disc?.N || disc?.id || idx}`,
+            author: String(author),
+            subject: String(subject),
+            content,
+            date: String(date),
+            read: Boolean(disc?.lu ?? (disc?.nbNonLus === 0)),
+            category: 'Discussion',
+            avatarColor: '#818CF8',
+          });
         });
       }
     } catch {}
