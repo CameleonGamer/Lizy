@@ -9,7 +9,8 @@ import {
   Platform,
   TextInput,
   RefreshControl,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -33,30 +34,41 @@ import {
   RefreshCw,
   Sparkles,
   Building2,
-  GraduationCap
+  GraduationCap,
+  BarChart2,
+  FileCheck2,
+  Paperclip,
+  Vote,
+  Check
 } from 'lucide-react-native';
 
-type FilterCategory = 'all' | 'unread' | 'Vie Scolaire' | 'Professeur' | 'Direction';
+type FilterCategory = 'all' | 'unread' | 'sondages' | 'Vie Scolaire' | 'Professeur' | 'Direction';
 
 export default function MessagesScreen() {
   const { currentTheme } = useThemeStore();
-  const { messages, markMessageAsRead } = useDataStore();
+  const { messages, markMessageAsRead, answerSurvey, acknowledgeMessage } = useDataStore();
   const { authType } = useAuthStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
   const [selectedMessage, setSelectedMessage] = useState<PronoteMessage | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const unreadCount = useMemo(() => {
     return messages.filter((m) => !m.read).length;
   }, [messages]);
 
+  const surveyCount = useMemo(() => {
+    return messages.filter((m) => m.isSurvey).length;
+  }, [messages]);
+
   const filteredMessages = useMemo(() => {
     return messages.filter((msg) => {
       // 1. Category Filter
       if (selectedCategory === 'unread' && msg.read) return false;
-      if (selectedCategory !== 'all' && selectedCategory !== 'unread') {
+      if (selectedCategory === 'sondages' && !msg.isSurvey) return false;
+      if (selectedCategory !== 'all' && selectedCategory !== 'unread' && selectedCategory !== 'sondages') {
         const cat = msg.category || (msg.author.toLowerCase().includes('prof') ? 'Professeur' : 'Vie Scolaire');
         if (cat !== selectedCategory) return false;
       }
@@ -78,10 +90,68 @@ export default function MessagesScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
+    
+    // Pre-populate survey choices if any
+    const initialAnswers: Record<string, string> = {};
+    if (msg.surveyQuestions) {
+      msg.surveyQuestions.forEach((q) => {
+        if (q.selectedChoice) {
+          initialAnswers[q.id] = q.selectedChoice;
+        }
+      });
+    }
+    setSelectedAnswers(initialAnswers);
     setSelectedMessage(msg);
+
     if (!msg.read) {
       markMessageAsRead(msg.id);
     }
+  };
+
+  const handleSelectChoice = (questionId: string, choice: string) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [questionId]: choice,
+    }));
+  };
+
+  const handleSubmitVote = (msg: PronoteMessage) => {
+    if (!msg.surveyQuestions || msg.surveyQuestions.length === 0) return;
+
+    // Check that at least one question has an answer
+    const answeredIds = Object.keys(selectedAnswers);
+    if (answeredIds.length === 0) {
+      Alert.alert('Choix requis', 'Veuillez sélectionner au moins une option pour valider votre réponse.');
+      return;
+    }
+
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
+
+    for (const q of msg.surveyQuestions) {
+      const choice = selectedAnswers[q.id];
+      if (choice) {
+        answerSurvey(msg.id, q.id, choice);
+      }
+    }
+
+    // Update local modal state
+    setSelectedMessage((prev) => (prev ? { ...prev, surveyAnswered: true } : null));
+    Alert.alert('Vote enregistré ! 🗳️', 'Votre réponse a été transmise avec succès à l’établissement.');
+  };
+
+  const handleAcknowledge = (msg: PronoteMessage) => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
+
+    acknowledgeMessage(msg.id);
+    setSelectedMessage((prev) => (prev ? { ...prev, acknowledged: true } : null));
+    Alert.alert('Accusé de réception validé ✍️', 'Vous avez formellement émargé et pris connaissance de ce document officiel.');
   };
 
   const handleRefresh = async () => {
@@ -97,6 +167,12 @@ export default function MessagesScreen() {
   };
 
   const getCategoryBadge = (msg: PronoteMessage) => {
+    if (msg.isSurvey) {
+      return { label: 'Sondage', color: '#8B5CF6', Icon: BarChart2 };
+    }
+    if (msg.requiresAck) {
+      return { label: 'Information', color: '#10B981', Icon: FileCheck2 };
+    }
     const cat = msg.category || (msg.author.toLowerCase().includes('prof') ? 'Professeur' : 'Vie Scolaire');
     let color = '#10B981';
     let Icon = Building2;
@@ -190,6 +266,22 @@ export default function MessagesScreen() {
             >
               <Text style={[styles.filterChipText, { color: selectedCategory === 'unread' ? '#FFFFFF' : currentTheme.colors.primary }]}>
                 Non lus ({unreadCount})
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {surveyCount > 0 && (
+            <TouchableOpacity
+              onPress={() => setSelectedCategory('sondages')}
+              style={[
+                styles.filterChip,
+                selectedCategory === 'sondages'
+                  ? { backgroundColor: '#8B5CF6', borderColor: '#8B5CF6' }
+                  : { backgroundColor: currentTheme.colors.surfaceGlass, borderColor: currentTheme.colors.borderGlass },
+              ]}
+            >
+              <Text style={[styles.filterChipText, { color: selectedCategory === 'sondages' ? '#FFFFFF' : '#8B5CF6' }]}>
+                Sondages 📊 ({surveyCount})
               </Text>
             </TouchableOpacity>
           )}
@@ -316,6 +408,40 @@ export default function MessagesScreen() {
                     </Text>
                   </View>
 
+                  {/* Survey or Ack status tag */}
+                  {(msg.isSurvey || msg.requiresAck) && (
+                    <View style={styles.msgStatusTagsRow}>
+                      {msg.isSurvey && (
+                        <View style={[
+                          styles.statusTag, 
+                          { 
+                            backgroundColor: msg.surveyAnswered ? 'rgba(16, 185, 129, 0.12)' : 'rgba(139, 92, 246, 0.14)', 
+                            borderColor: msg.surveyAnswered ? '#10B981' : '#8B5CF6' 
+                          }
+                        ]}>
+                          <BarChart2 size={11} color={msg.surveyAnswered ? '#10B981' : '#8B5CF6'} />
+                          <Text style={[styles.statusTagText, { color: msg.surveyAnswered ? '#10B981' : '#8B5CF6' }]}>
+                            {msg.surveyAnswered ? 'Sondage complété' : 'Sondage en attente de réponse'}
+                          </Text>
+                        </View>
+                      )}
+                      {msg.requiresAck && (
+                        <View style={[
+                          styles.statusTag, 
+                          { 
+                            backgroundColor: msg.acknowledged ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.14)', 
+                            borderColor: msg.acknowledged ? '#10B981' : '#F59E0B' 
+                          }
+                        ]}>
+                          <FileCheck2 size={11} color={msg.acknowledged ? '#10B981' : '#F59E0B'} />
+                          <Text style={[styles.statusTagText, { color: msg.acknowledged ? '#10B981' : '#F59E0B' }]}>
+                            {msg.acknowledged ? 'Accusé validé' : 'Accusé de réception requis'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
                   {/* Subject */}
                   <Text style={[styles.subjectText, { color: currentTheme.colors.text }]}>
                     {msg.subject}
@@ -332,7 +458,7 @@ export default function MessagesScreen() {
                   {/* Bottom Action Footer */}
                   <View style={styles.readMoreRow}>
                     <Text style={[styles.readMoreText, { color: currentTheme.colors.primary }]}>
-                      Lire le message
+                      {msg.isSurvey ? 'Ouvrir le sondage' : msg.requiresAck ? 'Lire et émarger' : 'Lire le message'}
                     </Text>
                     <ChevronRight size={14} color={currentTheme.colors.primary} />
                   </View>
@@ -377,6 +503,125 @@ export default function MessagesScreen() {
               <Text style={[styles.modalContent, { color: currentTheme.colors.text }]}>
                 {selectedMessage?.content}
               </Text>
+
+              {/* Attachments Section */}
+              {selectedMessage?.attachments && selectedMessage.attachments.length > 0 && (
+                <View style={styles.attachmentsSection}>
+                  <Text style={[styles.sectionMiniTitle, { color: currentTheme.colors.textMuted }]}>
+                    PIÈCES JOINTES ({selectedMessage.attachments.length})
+                  </Text>
+                  {selectedMessage.attachments.map((att) => (
+                    <View key={att.id} style={[styles.attachmentItem, { backgroundColor: currentTheme.colors.surfaceGlass, borderColor: currentTheme.colors.borderGlass }]}>
+                      <Paperclip size={14} color={currentTheme.colors.primary} />
+                      <Text numberOfLines={1} style={[styles.attachmentName, { color: currentTheme.colors.text }]}>
+                        {att.name}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Interactive Survey Voting Box */}
+              {selectedMessage?.isSurvey && selectedMessage.surveyQuestions && selectedMessage.surveyQuestions.length > 0 && (
+                <View style={[styles.surveyBox, { backgroundColor: 'rgba(139, 92, 246, 0.08)', borderColor: 'rgba(139, 92, 246, 0.3)' }]}>
+                  <View style={styles.surveyBoxHeader}>
+                    <BarChart2 size={18} color="#8B5CF6" />
+                    <Text style={[styles.surveyBoxTitle, { color: currentTheme.colors.text }]}>
+                      Sondage officiel de l'établissement
+                    </Text>
+                  </View>
+
+                  {selectedMessage.surveyAnswered && (
+                    <View style={styles.surveySuccessBadge}>
+                      <Check size={14} color="#10B981" />
+                      <Text style={styles.surveySuccessText}>Votre vote a été validé</Text>
+                    </View>
+                  )}
+
+                  {selectedMessage.surveyQuestions.map((q) => (
+                    <View key={q.id} style={styles.questionBlock}>
+                      <Text style={[styles.questionTitle, { color: currentTheme.colors.text }]}>
+                        {q.title}
+                      </Text>
+                      <View style={styles.choicesList}>
+                        {q.choices.map((choice, idx) => {
+                          const isSelected = selectedAnswers[q.id] === choice;
+                          return (
+                            <TouchableOpacity
+                              key={idx}
+                              activeOpacity={0.7}
+                              onPress={() => handleSelectChoice(q.id, choice)}
+                              style={[
+                                styles.choiceRow,
+                                {
+                                  backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.2)' : currentTheme.colors.surfaceGlass,
+                                  borderColor: isSelected ? '#8B5CF6' : currentTheme.colors.borderGlass,
+                                },
+                              ]}
+                            >
+                              <View style={[styles.radioCircle, isSelected && { borderColor: '#8B5CF6' }]}>
+                                {isSelected && <View style={styles.radioInner} />}
+                              </View>
+                              <Text style={[styles.choiceText, { color: isSelected ? '#FFFFFF' : currentTheme.colors.text }]}>
+                                {choice}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => selectedMessage && handleSubmitVote(selectedMessage)}
+                    style={[styles.voteButton, { backgroundColor: '#8B5CF6' }]}
+                  >
+                    <Vote size={16} color="#FFFFFF" />
+                    <Text style={styles.voteButtonText}>
+                      {selectedMessage.surveyAnswered ? 'Modifier mon vote 🗳️' : 'Valider mon vote 🗳️'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Interactive Accusé de Réception Box */}
+              {selectedMessage?.requiresAck && (
+                <View style={[
+                  styles.ackBox, 
+                  { 
+                    backgroundColor: selectedMessage.acknowledged ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)', 
+                    borderColor: selectedMessage.acknowledged ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)' 
+                  }
+                ]}>
+                  <View style={styles.ackBoxHeader}>
+                    <FileCheck2 size={18} color={selectedMessage.acknowledged ? '#10B981' : '#F59E0B'} />
+                    <Text style={[styles.ackBoxTitle, { color: currentTheme.colors.text }]}>
+                      Accusé de réception officiel
+                    </Text>
+                  </View>
+                  <Text style={[styles.ackBoxDesc, { color: currentTheme.colors.textMuted }]}>
+                    {selectedMessage.acknowledged
+                      ? 'Vous avez formellement attesté de la bonne réception et prise de connaissance de cette communication.'
+                      : 'L’établissement demande une signature attestant que vous avez lu ce document.'}
+                  </Text>
+                  {!selectedMessage.acknowledged ? (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => selectedMessage && handleAcknowledge(selectedMessage)}
+                      style={[styles.ackButton, { backgroundColor: '#10B981' }]}
+                    >
+                      <CheckCircle2 size={16} color="#FFFFFF" />
+                      <Text style={styles.ackButtonText}>Confirmer la lecture (Émarger) ✍️</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.ackConfirmedRow}>
+                      <Check size={14} color="#10B981" />
+                      <Text style={styles.ackConfirmedText}>Émargé avec succès par l’élève</Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.modalFooter}>
@@ -607,7 +852,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalCard: {
-    maxHeight: '82%',
+    maxHeight: '85%',
     padding: 20,
     borderRadius: 24,
   },
@@ -652,11 +897,193 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   modalBody: {
-    maxHeight: 280,
+    maxHeight: 420,
   },
   modalContent: {
     fontSize: 14,
     lineHeight: 22,
+  },
+  msgStatusTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  statusTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  attachmentsSection: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 8,
+  },
+  sectionMiniTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  attachmentName: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  surveyBox: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  surveyBoxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  surveyBoxTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  surveySuccessBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+  },
+  surveySuccessText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  questionBlock: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  questionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  choicesList: {
+    gap: 8,
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#8B5CF6',
+  },
+  choiceText: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  voteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  voteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  ackBox: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  ackBoxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  ackBoxTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  ackBoxDesc: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  ackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  ackButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  ackConfirmedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  ackConfirmedText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '700',
   },
   modalFooter: {
     marginTop: 16,

@@ -115,6 +115,13 @@ export interface TimetableLesson {
   isCustomEvent?: boolean;
 }
 
+export interface PronoteSurveyQuestion {
+  id: string;
+  title: string;
+  choices: string[];
+  selectedChoice?: string;
+}
+
 export interface PronoteMessage {
   id: string;
   author: string;
@@ -124,6 +131,12 @@ export interface PronoteMessage {
   read: boolean;
   category?: string;
   avatarColor?: string;
+  isSurvey?: boolean;
+  surveyQuestions?: PronoteSurveyQuestion[];
+  surveyAnswered?: boolean;
+  requiresAck?: boolean;
+  acknowledged?: boolean;
+  attachments?: { id: string; name: string; url?: string }[];
 }
 
 // ------------------------------------------

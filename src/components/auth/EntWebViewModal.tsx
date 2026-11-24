@@ -189,18 +189,31 @@ const INJECTED_RPC_SNIFFER = `
       try {
         var msgs = [];
         if (window.GExportation) {
-          var rawList = window.GExportation.listeActualites || window.GExportation.listeInformations || window.GExportation.actualites;
+          var rawList = window.GExportation.listeActualites || window.GExportation.listeInformations || window.GExportation.listeSondages || window.GExportation.actualites || window.GExportation.sondages;
           if (Array.isArray(rawList)) {
             for (var k = 0; k < rawList.length; k++) {
               var a = rawList[k];
               if (a) {
+                var isSurvey = Boolean(a.estSondage || a.sondage || a.listeQuestions || /sondage|enqu[eê]te|vote/i.test(a.L || a.titre || ''));
+                var choices = [];
+                if (isSurvey && Array.isArray(a.listeReponses || a.reponses || a.choix)) {
+                  var rawC = a.listeReponses || a.reponses || a.choix;
+                  for (var c = 0; c < rawC.length; c++) {
+                    choices.push(rawC[c].L || rawC[c].libelle || String(rawC[c]));
+                  }
+                }
                 msgs.push({
                   id: 'dom-act-' + (a.N || k),
                   author: a.auteur || a.emetteur || 'Vie Scolaire',
                   subject: a.L || a.titre || 'Information établissement',
                   content: a.texte || a.descriptif || '',
                   date: a.dateCreation || a.date || 'Récemment',
-                  read: Boolean(a.lue || a.estLu)
+                  read: Boolean(a.lue || a.estLu),
+                  category: isSurvey ? 'Sondage' : 'Information',
+                  avatarColor: isSurvey ? '#8B5CF6' : '#10B981',
+                  isSurvey: isSurvey,
+                  surveyQuestions: isSurvey ? [{ id: 'q-1', title: a.L || 'Votre réponse :', choices: choices.length > 0 ? choices : ['D’accord', 'Pas d’accord', 'Ne se prononce pas'] }] : undefined,
+                  requiresAck: Boolean(a.demandeAccuse || a.accuseReception)
                 });
               }
             }
@@ -208,23 +221,28 @@ const INJECTED_RPC_SNIFFER = `
         }
 
         if (msgs.length === 0) {
-          var items = document.querySelectorAll('.ibe_actu, .ibe_actualite, [id*="Actualite"], .communication-item');
+          var items = document.querySelectorAll('.ibe_actu, .ibe_actualite, .ibe_sondage, [id*="Actualite"], [id*="Sondage"], .communication-item');
           for (var m = 0; m < items.length && m < 15; m++) {
             var it = items[m];
-            var titleEl = it.querySelector('.titre, .objet, h3, h4, .ibe_actu_titre');
+            var titleEl = it.querySelector('.titre, .objet, h3, h4, .ibe_actu_titre, .ibe_sondage_titre');
             var authorEl = it.querySelector('.auteur, .emetteur, .ibe_actu_auteur');
             var descEl = it.querySelector('.descriptif, .texte, .contenu, p');
             var dateEl = it.querySelector('.date, .ibe_actu_date, time');
 
             var title = titleEl ? titleEl.innerText.trim() : (it.innerText ? it.innerText.split('\\n')[0] : '');
+            var isDomSurvey = it.className.includes('sondage') || /sondage|enqu[eê]te|vote/i.test(title);
             if (title) {
               msgs.push({
                 id: 'dom-msg-' + m,
-                author: authorEl ? authorEl.innerText.trim() : 'Vie Scolaire',
+                author: authorEl ? authorEl.innerText.trim() : (isDomSurvey ? 'Direction' : 'Vie Scolaire'),
                 subject: title,
                 content: descEl ? descEl.innerText.trim() : it.innerText.trim(),
                 date: dateEl ? dateEl.innerText.trim() : 'Récemment',
-                read: true
+                read: true,
+                category: isDomSurvey ? 'Sondage' : 'Information',
+                avatarColor: isDomSurvey ? '#8B5CF6' : '#10B981',
+                isSurvey: isDomSurvey,
+                surveyQuestions: isDomSurvey ? [{ id: 'q-1', title: title, choices: ['Favorable', 'Défavorable', 'Sans opinion'] }] : undefined
               });
             }
           }

@@ -27,6 +27,7 @@ import { isNativeLiquidGlassAvailable } from '@/components/glass/glassMode';
 import { ColorPicker } from '@/components/settings/ColorPicker';
 import { DEFAULT_APPEARANCE } from '@/stores/useThemeStore';
 import { ThemePresetName } from '@/types';
+import { LocalNotifications } from '@/core/notifications/notifications';
 import { 
   Trophy, 
   Flame, 
@@ -47,7 +48,9 @@ import {
   LogOut,
   Leaf,
   Droplets,
-  RotateCcw
+  RotateCcw,
+  Bell,
+  BellRing
 } from 'lucide-react-native';
 
 const THEME_OPTIONS: { name: ThemePresetName; color: string; desc: string }[] = [
@@ -122,6 +125,26 @@ export default function ProfileScreen() {
     } catch {}
     addXp(50); // +50 XP for completed Pomodoro focus
     Alert.alert('Session Terminée ! 🎉', 'Tu as gagné +50 XP pour cette session Focus.');
+  };
+
+  const handleTestNotifications = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const ok = await LocalNotifications.testNotification();
+      if (ok) {
+        Alert.alert(
+          'Alerte envoyée ! 🔔',
+          'Une notification de test a été déclenchée sur votre appareil. Lizy vous alertera automatiquement pour chaque nouvelle note, devoir ou sondage Pronote.'
+        );
+      } else {
+        Alert.alert(
+          'Autorisation requise',
+          'Veuillez autoriser les notifications dans les réglages système de votre téléphone pour recevoir les alertes.'
+        );
+      }
+    } catch {
+      Alert.alert('Erreur', 'Impossible de déclencher la notification de test.');
+    }
   };
 
   const handleTogglePin = () => {
@@ -522,6 +545,61 @@ export default function ProfileScreen() {
               thumbColor="#FFFFFF"
             />
           </View>
+        </GlassCard>
+
+        {/* Notifications & Alertes Pronote */}
+        <GlassCard style={styles.sectionCard}>
+          <View style={styles.privacyHeader}>
+            <Bell size={20} color={currentTheme.colors.primary} />
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text }]}>
+              Notifications Pronote & Alertes
+            </Text>
+          </View>
+
+          <View style={styles.securityHighlights}>
+            <View style={[styles.secBadge, { backgroundColor: currentTheme.colors.surfaceGlass, borderColor: currentTheme.colors.borderGlass }]}>
+              <BellRing size={14} color="#10B981" />
+              <Text style={[styles.secBadgeText, { color: currentTheme.colors.text }]}>Alertes Immédiates</Text>
+            </View>
+            <View style={[styles.secBadge, { backgroundColor: currentTheme.colors.surfaceGlass, borderColor: currentTheme.colors.borderGlass }]}>
+              <Shield size={14} color={currentTheme.colors.accent} />
+              <Text style={[styles.secBadgeText, { color: currentTheme.colors.text }]}>100% Local / Sans Serveur Tiers</Text>
+            </View>
+          </View>
+
+          <View style={styles.notifInfoList}>
+            <View style={styles.notifInfoItem}>
+              <Text style={[styles.notifBullet, { color: currentTheme.colors.primary }]}>🎯</Text>
+              <Text style={[styles.notifInfoText, { color: currentTheme.colors.textMuted }]}>
+                <Text style={{ color: currentTheme.colors.text, fontWeight: '700' }}>Nouvelles Notes : </Text>
+                Notification instantanée dès publication avec coefficient et moyenne de classe.
+              </Text>
+            </View>
+            <View style={styles.notifInfoItem}>
+              <Text style={[styles.notifBullet, { color: currentTheme.colors.primary }]}>📚</Text>
+              <Text style={[styles.notifInfoText, { color: currentTheme.colors.textMuted }]}>
+                <Text style={{ color: currentTheme.colors.text, fontWeight: '700' }}>Nouveaux Devoirs : </Text>
+                Alerte dès qu’un devoir est assigné, avec date d'échéance et matière.
+              </Text>
+            </View>
+            <View style={styles.notifInfoItem}>
+              <Text style={[styles.notifBullet, { color: currentTheme.colors.primary }]}>📊</Text>
+              <Text style={[styles.notifInfoText, { color: currentTheme.colors.textMuted }]}>
+                <Text style={{ color: currentTheme.colors.text, fontWeight: '700' }}>Sondages & Infos : </Text>
+                Alerte immédiate pour les sondages officiels et accusés de réception requis.
+              </Text>
+            </View>
+          </View>
+
+          <GlassButton
+            onPress={handleTestNotifications}
+            style={[styles.notifTestButton, { backgroundColor: currentTheme.colors.surfaceGlass, borderColor: currentTheme.colors.borderGlass }]}
+          >
+            <Bell size={16} color={currentTheme.colors.primary} />
+            <Text style={[styles.notifTestButtonText, { color: currentTheme.colors.text }]}>
+              Envoyer une notification de test
+            </Text>
+          </GlassButton>
         </GlassCard>
 
         {/* Privacy & Security Zero-Trust Actions */}
@@ -1002,6 +1080,37 @@ const styles = StyleSheet.create({
   secBadgeText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  notifInfoList: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  notifInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  notifBullet: {
+    fontSize: 14,
+    marginTop: 1,
+  },
+  notifInfoText: {
+    fontSize: 12,
+    lineHeight: 18,
+    flex: 1,
+  },
+  notifTestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  notifTestButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   secSettingRow: {
     flexDirection: 'row',

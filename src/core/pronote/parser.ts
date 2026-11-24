@@ -287,30 +287,91 @@ export const PronoteParser = {
       const unwrapped = this.unwrap(raw);
       const donnees = unwrapped?.donnees || unwrapped?.data || unwrapped;
 
-      // 1. Check for listeActualites / listeInformations / listeSondages
+      // 1. Check for listeActualites / listeInformations / listeSondages / actualites
       const rawActs =
         donnees?.listeActualites ||
+        donnees?.ListeActualites ||
         donnees?.listeInformations ||
+        donnees?.ListeInformations ||
+        donnees?.listeSondages ||
         donnees?.actualites ||
         donnees?.informations ||
+        donnees?.sondages ||
         [];
 
       if (Array.isArray(rawActs)) {
         rawActs.forEach((act: any, idx: number) => {
-          const author = act?.auteur?.L || act?.auteur || act?.emetteur || act?.service || 'Vie Scolaire';
-          const subject = act?.L || act?.titre || act?.objet || 'Information établissement';
-          const rawContent = act?.texte || act?.descriptif || act?.contenu || '';
+          const author = act?.auteur?.L || act?.auteur?.V || act?.auteur || act?.emetteur || act?.service || 'Vie Scolaire';
+          const subject = act?.L || act?.L?.V || act?.titre || act?.objet || 'Information établissement';
+          const rawContent = act?.texte?.V || act?.texte || act?.descriptif || act?.contenu || '';
           const content = cleanPronoteHtml(rawContent) || 'Information de votre établissement.';
 
-          let date = act?.dateCreation || act?.date || act?.dateDebut || 'Récemment';
+          let date = act?.dateCreation?.V || act?.dateCreation || act?.date?.V || act?.date || act?.dateDebut || 'Récemment';
           if (typeof date === 'string' && date.includes(' ')) {
             date = date.split(' ')[0];
           }
 
-          let category = 'Vie Scolaire';
-          let avatarColor = '#10B981';
+          // Check if this item is a Survey (Sondage)
+          const isSurvey = Boolean(
+            act?.estSondage ||
+            act?.sondage ||
+            act?.listeQuestions ||
+            act?.questions ||
+            /sondage|enqu[eê]te|questionnaire|vote/i.test(String(subject))
+          );
+
+          // Extract questions and choices if survey
+          let surveyQuestions = undefined;
+          const rawQuestions = act?.listeQuestions || act?.questions || act?.sondage?.listeQuestions;
+          if (Array.isArray(rawQuestions) && rawQuestions.length > 0) {
+            surveyQuestions = rawQuestions.map((q: any, qIdx: number) => {
+              const qTitle = q?.L || q?.titre || q?.texte || `Question ${qIdx + 1}`;
+              const choices: string[] = [];
+              const rawChoices = q?.listeReponses || q?.reponses || q?.choix || [];
+              if (Array.isArray(rawChoices)) {
+                rawChoices.forEach((c: any) => {
+                  const choiceText = c?.L || c?.libelle || c?.texte || String(c);
+                  if (choiceText) choices.push(String(choiceText));
+                });
+              }
+              return {
+                id: `q-${q?.N || qIdx}`,
+                title: String(qTitle),
+                choices: choices.length > 0 ? choices : ['D’accord', 'Pas d’accord', 'Ne se prononce pas'],
+              };
+            });
+          } else if (isSurvey) {
+            // Default interactive response choices if options not structured
+            surveyQuestions = [
+              {
+                id: `q-${act?.N || idx}-1`,
+                title: 'Votre réponse au sondage :',
+                choices: ['Favorable', 'Défavorable', 'Sans opinion'],
+              },
+            ];
+          }
+
+          // Accusé de réception
+          const requiresAck = Boolean(act?.demandeAccuse || act?.accuseReception || act?.avecAccuseReception);
+
+          // Attachments
+          let attachments = undefined;
+          const rawFiles = act?.listeDocumentsJoints || act?.piecesJointes || act?.documents;
+          if (Array.isArray(rawFiles) && rawFiles.length > 0) {
+            attachments = rawFiles.map((f: any, fIdx: number) => ({
+              id: `att-${f?.N || fIdx}`,
+              name: f?.L || f?.nom || f?.titre || `Document_${fIdx + 1}`,
+              url: f?.url,
+            }));
+          }
+
+          let category = isSurvey ? 'Sondage' : 'Vie Scolaire';
+          let avatarColor = isSurvey ? '#8B5CF6' : '#10B981';
           const lowerAuth = String(author).toLowerCase();
-          if (lowerAuth.includes('prof') || lowerAuth.includes('m.') || lowerAuth.includes('mme')) {
+          if (isSurvey) {
+            category = 'Sondage';
+            avatarColor = '#8B5CF6';
+          } else if (lowerAuth.includes('prof') || lowerAuth.includes('m.') || lowerAuth.includes('mme')) {
             category = 'Professeur';
             avatarColor = '#38BDF8';
           } else if (lowerAuth.includes('direct') || lowerAuth.includes('proviseur') || lowerAuth.includes('principal')) {
@@ -327,6 +388,10 @@ export const PronoteParser = {
             read: Boolean(act?.lue ?? act?.estLu ?? false),
             category,
             avatarColor,
+            isSurvey,
+            surveyQuestions,
+            requiresAck,
+            attachments,
           });
         });
       }

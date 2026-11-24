@@ -36,7 +36,8 @@ import {
   BarChart2,
   LogIn,
   Compass,
-  MessageSquare
+  MessageSquare,
+  FileCheck2
 } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -75,6 +76,10 @@ export default function DashboardScreen() {
 
   // Exclude past homework before today from pending count and dashboard widget
   const pendingHomework = homework.filter((h) => !h.completed && !isBeforeToday(h.dueDate));
+
+  // Urgent institution surveys or acknowledgments
+  const pendingSurvey = messages.find((m) => m.isSurvey && !m.surveyAnswered);
+  const pendingAck = messages.find((m) => m.requiresAck && !m.acknowledged);
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
@@ -359,6 +364,55 @@ export default function DashboardScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Highlighted Pending Survey or Acknowledgment Banner */}
+            {pendingSurvey && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push('/(tabs)/messages')}
+                style={[
+                  styles.urgentAlertBanner,
+                  { backgroundColor: 'rgba(139, 92, 246, 0.14)', borderColor: '#8B5CF6' }
+                ]}
+              >
+                <View style={styles.urgentAlertLeft}>
+                  <BarChart2 size={16} color="#8B5CF6" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.urgentAlertTag, { color: '#8B5CF6' }]}>
+                      SONDAGE PRONOTE À REMPLIR
+                    </Text>
+                    <Text numberOfLines={1} style={[styles.urgentAlertTitle, { color: currentTheme.colors.text }]}>
+                      {pendingSurvey.subject}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.urgentAlertAction, { color: '#8B5CF6' }]}>Voter ›</Text>
+              </TouchableOpacity>
+            )}
+
+            {!pendingSurvey && pendingAck && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push('/(tabs)/messages')}
+                style={[
+                  styles.urgentAlertBanner,
+                  { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: '#F59E0B' }
+                ]}
+              >
+                <View style={styles.urgentAlertLeft}>
+                  <FileCheck2 size={16} color="#F59E0B" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.urgentAlertTag, { color: '#F59E0B' }]}>
+                      ACCUSÉ DE RÉCEPTION REQUIS
+                    </Text>
+                    <Text numberOfLines={1} style={[styles.urgentAlertTitle, { color: currentTheme.colors.text }]}>
+                      {pendingAck.subject}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.urgentAlertAction, { color: '#F59E0B' }]}>Émarger ›</Text>
+              </TouchableOpacity>
+            )}
 
             {messages.length === 0 ? (
               <TouchableOpacity onPress={() => router.push('/(tabs)/messages')}>
@@ -649,6 +703,38 @@ const styles = StyleSheet.create({
   demoAlertText: {
     fontSize: 13,
     flex: 1,
+  },
+  urgentAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  urgentAlertLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
+  },
+  urgentAlertTag: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  urgentAlertTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  urgentAlertAction: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   dashboardMsgList: {
     marginTop: 6,

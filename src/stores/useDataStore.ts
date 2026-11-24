@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import Storage from 'expo-sqlite/kv-store';
 import { Grade, Homework, TimetableLesson, PronoteMessage, SubjectAverage } from '@/types';
 import { sortHomeworkByDueDate } from '@/core/utils/dateUtils';
+import { LocalNotifications } from '@/core/notifications/notifications';
 
 const MOCK_DATA = {
   generalAverage: 15.42,
@@ -103,14 +104,41 @@ const MOCK_DATA = {
   ],
   messages: [
     {
-      id: 'msg-demo-1',
+      id: 'msg-demo-sondage',
+      author: 'Direction du lycée',
+      subject: '📊 Sondage : Thématiques de la semaine des talents',
+      content: 'Chers élèves, donnez votre avis avant vendredi sur les thématiques des ateliers que vous souhaitez voir organisés pour la prochaine édition.',
+      date: 'Aujourd’hui',
+      read: false,
+      category: 'Sondage',
+      avatarColor: '#8B5CF6',
+      isSurvey: true,
+      surveyQuestions: [
+        {
+          id: 'q-1',
+          title: 'Quel atelier pratique souhaitez-vous en priorité ?',
+          choices: [
+            'Informatique, IA & Robotique',
+            'Musique & Enregistrement studio',
+            'Théâtre d’improvisation & Éloquence',
+            'Tournoi d’échecs & Stratégie',
+            'Arts graphiques & Manga'
+          ],
+        },
+      ],
+      surveyAnswered: false,
+    },
+    {
+      id: 'msg-demo-info-ack',
       author: 'Vie Scolaire',
-      subject: 'Absence justifiée',
-      content: 'Le justificatif pour votre absence du 12 novembre a été validé par le service de la vie scolaire.',
+      subject: '📢 Information obligatoire : Modalités des sorties scolaires',
+      content: 'Veuillez prendre connaissance du protocole de sécurité et d’assurance actualisé pour les sorties et voyages scolaires du second trimestre. Un accusé de réception est requis.',
       date: 'Hier',
-      read: true,
-      category: 'Vie Scolaire',
+      read: false,
+      category: 'Information',
       avatarColor: '#10B981',
+      requiresAck: true,
+      acknowledged: false,
     },
     {
       id: 'msg-demo-2',
@@ -118,7 +146,7 @@ const MOCK_DATA = {
       subject: 'Fiches de révision DS - Équations différentielles',
       content: 'Bonjour à tous, les fiches méthodologiques et les corrigés d’exercices d’entraînement sont en ligne. Pensez à revoir les démonstrations de cours avant le devoir surveillé.',
       date: '10 nov.',
-      read: false,
+      read: true,
       category: 'Professeur',
       avatarColor: '#38BDF8',
     },
@@ -128,7 +156,7 @@ const MOCK_DATA = {
       subject: 'Organisation des épreuves blanches & conseils de classe',
       content: 'Chers élèves, le calendrier des conseils de classe du premier trimestre ainsi que le planning des épreuves blanches sont désormais arrêtés. Consultez l’affichage officiel.',
       date: '04 nov.',
-      read: false,
+      read: true,
       category: 'Direction',
       avatarColor: '#F59E0B',
     },
@@ -154,6 +182,8 @@ interface DataState {
     generalAverage?: number;
   }) => void;
   markMessageAsRead: (id: string) => void;
+  answerSurvey: (messageId: string, questionId: string, choice: string) => void;
+  acknowledgeMessage: (messageId: string) => void;
   toggleHomework: (id: string) => void;
   toggleSubtask: (homeworkId: string, subtaskId: string) => void;
   addPersonalHomework: (item: Omit<Homework, 'id' | 'isPersonal' | 'completed' | 'subtasks'>) => void;
@@ -192,23 +222,77 @@ export const useDataStore = create<DataState>()(
       },
 
       syncRealData: (payload) => {
-        set((state) => ({
-          ...state,
-          ...payload,
-          grades: payload.grades !== undefined ? payload.grades : state.grades,
-          homework: payload.homework !== undefined ? sortHomeworkByDueDate(payload.homework) : state.homework,
-          timetable: payload.timetable !== undefined ? payload.timetable : state.timetable,
-          messages: payload.messages !== undefined ? payload.messages : state.messages,
-          averages: payload.averages !== undefined ? payload.averages : state.averages,
-          generalAverage: payload.generalAverage !== undefined ? payload.generalAverage : state.generalAverage,
-          isLoading: false,
-        }));
+        set((state) => {
+          // 1. Alert for new grades
+          if (state.grades.length > 0 && payload.grades && payload.grades.length > 0) {
+            const oldGradeIds = new Set(state.grades.map((g) => g.id));
+            const freshGrades = payload.grades.filter((g) => !oldGradeIds.has(g.id));
+            for (const fg of freshGrades) {
+              LocalNotifications.notifyNewGrade(fg);
+            }
+          }
+
+          // 2. Alert for new homework
+          if (state.homework.length > 0 && payload.homework && payload.homework.length > 0) {
+            const oldHwIds = new Set(state.homework.map((h) => h.id));
+            const freshHw = payload.homework.filter((h) => !oldHwIds.has(h.id));
+            for (const fh of freshHw) {
+              LocalNotifications.notifyNewHomework(fh);
+            }
+          }
+
+          // 3. Alert for new school announcements / surveys
+          if (state.messages.length > 0 && payload.messages && payload.messages.length > 0) {
+            const oldMsgIds = new Set(state.messages.map((m) => m.id));
+            const freshMsgs = payload.messages.filter((m) => !oldMsgIds.has(m.id));
+            for (const fm of freshMsgs) {
+              LocalNotifications.notifyNewMessage(fm);
+            }
+          }
+
+          return {
+            ...state,
+            ...payload,
+            grades: payload.grades !== undefined ? payload.grades : state.grades,
+            homework: payload.homework !== undefined ? sortHomeworkByDueDate(payload.homework) : state.homework,
+            timetable: payload.timetable !== undefined ? payload.timetable : state.timetable,
+            messages: payload.messages !== undefined ? payload.messages : state.messages,
+            averages: payload.averages !== undefined ? payload.averages : state.averages,
+            generalAverage: payload.generalAverage !== undefined ? payload.generalAverage : state.generalAverage,
+            isLoading: false,
+          };
+        });
       },
 
       markMessageAsRead: (id: string) => {
         set((state) => ({
           messages: state.messages.map((m) =>
             m.id === id ? { ...m, read: true } : m
+          ),
+        }));
+      },
+
+      answerSurvey: (messageId: string, questionId: string, choice: string) => {
+        set((state) => ({
+          messages: state.messages.map((m) => {
+            if (m.id !== messageId) return m;
+            const updatedQuestions = m.surveyQuestions?.map((q) =>
+              q.id === questionId ? { ...q, selectedChoice: choice } : q
+            );
+            return {
+              ...m,
+              surveyQuestions: updatedQuestions,
+              surveyAnswered: true,
+              read: true,
+            };
+          }),
+        }));
+      },
+
+      acknowledgeMessage: (messageId: string) => {
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === messageId ? { ...m, acknowledged: true, read: true } : m
           ),
         }));
       },
