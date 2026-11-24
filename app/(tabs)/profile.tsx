@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -10,7 +10,9 @@ import {
   Switch,
   Modal,
   TextInput,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  Linking,
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -28,6 +30,9 @@ import { ColorPicker } from '@/components/settings/ColorPicker';
 import { DEFAULT_APPEARANCE } from '@/stores/useThemeStore';
 import { ThemePresetName } from '@/types';
 import { LocalNotifications } from '@/core/notifications/notifications';
+import { APP_VERSION, GITHUB_RELEASES_URL, GITHUB_REPO } from '@/constants/version';
+import { checkForGithubUpdate, ReleaseInfo } from '@/core/updater/githubUpdater';
+import { UpdateModal } from '@/components/updater/UpdateModal';
 import { 
   Trophy, 
   Flame, 
@@ -50,7 +55,11 @@ import {
   Droplets,
   RotateCcw,
   Bell,
-  BellRing
+  BellRing,
+  RefreshCw,
+  Rocket,
+  ExternalLink,
+  Download
 } from 'lucide-react-native';
 
 const THEME_OPTIONS: { name: ThemePresetName; color: string; desc: string }[] = [
@@ -111,6 +120,48 @@ export default function ProfileScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [disableModalVisible, setDisableModalVisible] = useState(false);
   const [disablePin, setDisablePin] = useState('');
+
+  // GitHub Updater states
+  const [updateModalVisible, setUpdateModalVisible] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [latestRelease, setLatestRelease] = useState<ReleaseInfo | null>(null);
+  const [hasUpdateAvailable, setHasUpdateAvailable] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Subtle background check on mount
+    checkForGithubUpdate().then((res) => {
+      if (res.success && res.release) {
+        setLatestRelease(res.release);
+        setHasUpdateAvailable(res.updateAvailable);
+      }
+    });
+  }, []);
+
+  const handleCheckUpdate = async (silent = false) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+
+    setIsCheckingUpdate(true);
+    setUpdateError(null);
+
+    const res = await checkForGithubUpdate();
+    setIsCheckingUpdate(false);
+
+    if (res.success && res.release) {
+      setLatestRelease(res.release);
+      setHasUpdateAvailable(res.updateAvailable);
+      if (!silent) {
+        setUpdateModalVisible(true);
+      }
+    } else {
+      setUpdateError(res.error || 'Erreur lors de la vérification.');
+      if (!silent) {
+        setUpdateModalVisible(true);
+      }
+    }
+  };
 
   const handleSelectTheme = (name: ThemePresetName) => {
     try {
@@ -696,6 +747,74 @@ export default function ProfileScreen() {
           </GlassButton>
         </GlassCard>
 
+        {/* Application & Mises à jour GitHub */}
+        <GlassCard style={styles.sectionCard}>
+          <View style={styles.privacyHeader}>
+            <Sparkles size={20} color={currentTheme.colors.primary} />
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text }]}>
+              Mise à jour & Version
+            </Text>
+          </View>
+
+          <View style={styles.updateStatusBox}>
+            <View style={styles.updateVersionRow}>
+              <View>
+                <Text style={[styles.updateVersionLabel, { color: currentTheme.colors.textMuted }]}>
+                  VERSION INSTALLÉE
+                </Text>
+                <Text style={[styles.updateVersionText, { color: currentTheme.colors.text }]}>
+                  {APP_VERSION}
+                </Text>
+              </View>
+
+              {hasUpdateAvailable ? (
+                <View style={[styles.updateBadgeAlert, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: '#F59E0B' }]}>
+                  <Rocket size={12} color="#F59E0B" />
+                  <Text style={styles.updateBadgeAlertText}>Mise à jour dispo</Text>
+                </View>
+              ) : (
+                <View style={[styles.updateBadgeOk, { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: '#10B981' }]}>
+                  <CheckCircle2 size={12} color="#10B981" />
+                  <Text style={styles.updateBadgeOkText}>À jour</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={[styles.updateDesc, { color: currentTheme.colors.textMuted }]}>
+              Recherche les nouvelles versions publiées sur le dépôt GitHub officiel et installe directement la mise à jour APK sur votre appareil.
+            </Text>
+
+            <GlassButton
+              onPress={() => handleCheckUpdate(false)}
+              disabled={isCheckingUpdate}
+              style={[
+                styles.updateCheckButton,
+                { backgroundColor: currentTheme.colors.primary }
+              ]}
+            >
+              {isCheckingUpdate ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <RefreshCw size={16} color="#FFFFFF" />
+              )}
+              <Text style={styles.updateCheckButtonText}>
+                {isCheckingUpdate ? 'Recherche sur GitHub...' : 'Rechercher une mise à jour'}
+              </Text>
+            </GlassButton>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => Linking.openURL(GITHUB_RELEASES_URL)}
+              style={styles.githubLinkRow}
+            >
+              <ExternalLink size={13} color={currentTheme.colors.textMuted} />
+              <Text style={[styles.githubLinkText, { color: currentTheme.colors.textMuted }]}>
+                Consulter les releases sur GitHub ({GITHUB_REPO})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </GlassCard>
+
         {/* Modal Setup New PIN */}
         <Modal visible={pinModalVisible} transparent animationType="slide">
           <KeyboardAvoidingView 
@@ -794,6 +913,16 @@ export default function ProfileScreen() {
             </GlassCard>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* GitHub Update Modal */}
+        <UpdateModal
+          visible={updateModalVisible}
+          onClose={() => setUpdateModalVisible(false)}
+          isLoading={isCheckingUpdate}
+          currentVersion={APP_VERSION}
+          release={latestRelease}
+          error={updateError}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -1190,5 +1319,81 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
+  },
+  updateStatusBox: {
+    gap: 12,
+  },
+  updateVersionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  updateVersionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  updateVersionText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  updateBadgeAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  updateBadgeAlertText: {
+    color: '#F59E0B',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  updateBadgeOk: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  updateBadgeOkText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  updateDesc: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  updateCheckButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 46,
+    borderRadius: 14,
+  },
+  updateCheckButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  githubLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  githubLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
