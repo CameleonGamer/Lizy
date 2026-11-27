@@ -1,12 +1,13 @@
 import React from 'react';
-import { Animated, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, ViewStyle, StyleProp, useWindowDimensions } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { withAlpha, shade } from '@/core/theme/color';
 import { LeafCluster } from './LeafCluster';
 import { Vine } from './Vine';
 import { LeafSpec } from './Leaf';
-import { useLeafWindSway } from './useSway';
+import { useLeafWindStyle } from './useSway';
 
 /*
  * Corner clusters. Coordinates are local to each cluster's Svg box.
@@ -44,11 +45,12 @@ const SwayingLeafCluster: React.FC<{
   height: number;
   leaves: LeafSpec[];
   color: string;
-  style: any;
+  style: StyleProp<ViewStyle>;
   transformOrigin: string;
-  degrees?: number;
-  duration?: number;
-  delay?: number;
+  degrees: number;
+  duration: number;
+  delay: number;
+  driftPx: number;
 }> = ({
   width,
   height,
@@ -56,15 +58,23 @@ const SwayingLeafCluster: React.FC<{
   color,
   style,
   transformOrigin,
-  degrees = 2.4,
-  duration = 3800,
-  delay = 0,
+  degrees,
+  duration,
+  delay,
+  driftPx,
 }) => {
-  const rotate = useLeafWindSway(degrees, duration, delay);
+  const windStyle = useLeafWindStyle({
+    baseDegrees: degrees,
+    baseDuration: duration,
+    delay,
+    driftPx,
+    transformOrigin,
+  });
+
   return (
     <Animated.View
       pointerEvents="none"
-      style={[style, { transformOrigin: transformOrigin as any, transform: [{ rotate }] }]}
+      style={[style, { width, height }, windStyle]}
     >
       <LeafCluster width={width} height={height} leaves={leaves} color={color} />
     </Animated.View>
@@ -81,11 +91,18 @@ const SwayingVine: React.FC<{
   vineColor: string;
   leafColor: string;
 }> = ({ left, width, height, seed, degrees, duration, vineColor, leafColor }) => {
-  const rotate = useLeafWindSway(degrees, duration, seed * 400);
+  const windStyle = useLeafWindStyle({
+    baseDegrees: degrees,
+    baseDuration: duration,
+    delay: seed * 320,
+    driftPx: 2.5,
+    transformOrigin: '50% 0%',
+  });
+
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.vine, { left, width, height, transformOrigin: 'top', transform: [{ rotate }] }]}
+      style={[styles.vine, { left, width, height }, windStyle]}
     >
       <Vine kind="hanging" width={width} height={height} seed={seed} vineColor={vineColor} leafColor={leafColor} />
     </Animated.View>
@@ -136,10 +153,11 @@ export const JungleBackground: React.FC<JungleBackgroundProps> = ({ density = 'f
           leaves={TOP_LEFT}
           color={leafColor}
           style={[styles.abs, { top: -30, left: -40 }]}
-          transformOrigin="top left"
-          degrees={2.4}
-          duration={3800}
+          transformOrigin="0% 0%"
+          degrees={5.0}
+          duration={1900}
           delay={0}
+          driftPx={4.0}
         />
         <SwayingLeafCluster
           width={180}
@@ -147,10 +165,11 @@ export const JungleBackground: React.FC<JungleBackgroundProps> = ({ density = 'f
           leaves={TOP_RIGHT}
           color={leafColor}
           style={[styles.abs, { top: -20, right: -30 }]}
-          transformOrigin="top right"
-          degrees={2.2}
-          duration={4200}
-          delay={400}
+          transformOrigin="100% 0%"
+          degrees={4.6}
+          duration={2150}
+          delay={350}
+          driftPx={3.5}
         />
         {full && (
           <>
@@ -160,10 +179,11 @@ export const JungleBackground: React.FC<JungleBackgroundProps> = ({ density = 'f
               leaves={BOTTOM_LEFT}
               color={leafColor}
               style={[styles.abs, { bottom: 40, left: -50 }]}
-              transformOrigin="bottom left"
-              degrees={2.8}
-              duration={3500}
-              delay={800}
+              transformOrigin="0% 100%"
+              degrees={5.4}
+              duration={1750}
+              delay={650}
+              driftPx={4.5}
             />
             <SwayingLeafCluster
               width={190}
@@ -171,21 +191,22 @@ export const JungleBackground: React.FC<JungleBackgroundProps> = ({ density = 'f
               leaves={BOTTOM_RIGHT}
               color={leafColor}
               style={[styles.abs, { bottom: 30, right: -40 }]}
-              transformOrigin="bottom right"
-              degrees={2.5}
-              duration={4000}
-              delay={1200}
+              transformOrigin="100% 100%"
+              degrees={4.8}
+              duration={2050}
+              delay={950}
+              driftPx={4.0}
             />
           </>
         )}
       </View>
 
       <View style={[styles.layer, { opacity: 0.7 }]}>
-        <SwayingVine left={width * 0.04} width={70} height={Math.min(260, height * 0.3)} seed={1} degrees={2.2} duration={3800} vineColor={vineColor} leafColor={leafColor} />
+        <SwayingVine left={width * 0.04} width={70} height={Math.min(260, height * 0.3)} seed={1} degrees={4.2} duration={2000} vineColor={vineColor} leafColor={leafColor} />
         {full && (
-          <SwayingVine left={width * 0.55} width={60} height={Math.min(150, height * 0.18)} seed={2} degrees={3} duration={3100} vineColor={vineColor} leafColor={leafColor} />
+          <SwayingVine left={width * 0.55} width={60} height={Math.min(150, height * 0.18)} seed={2} degrees={5.5} duration={1650} vineColor={vineColor} leafColor={leafColor} />
         )}
-        <SwayingVine left={width - 78} width={70} height={Math.min(320, height * 0.38)} seed={3} degrees={1.8} duration={4400} vineColor={vineColor} leafColor={leafColor} />
+        <SwayingVine left={width - 78} width={70} height={Math.min(320, height * 0.38)} seed={3} degrees={3.6} duration={2300} vineColor={vineColor} leafColor={leafColor} />
       </View>
 
       {/* Soft fade so the decor melts into the chosen background colour */}

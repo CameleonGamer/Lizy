@@ -1,84 +1,105 @@
-import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing } from 'react-native';
+import { useEffect } from 'react';
+import {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { WindIntensity } from '@/types';
 
-/** Whether the user asked the OS to reduce motion. */
-export function useReduceMotion(): boolean {
-  const [reduce, setReduce] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((v) => mounted && setReduce(v))
-      .catch(() => {});
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
-    return () => {
-      mounted = false;
-      sub.remove();
-    };
-  }, []);
-  return reduce;
+const WIND_PROFILE: Record<WindIntensity, { ampScale: number; durScale: number; driftScale: number }> = {
+  gentle: { ampScale: 0.65, durScale: 1.4, driftScale: 0.55 },
+  breeze: { ampScale: 1.0, durScale: 1.0, driftScale: 1.0 },
+  strong: { ampScale: 1.65, durScale: 0.65, driftScale: 1.65 },
+};
+
+export interface LeafWindOptions {
+  /** Nominal half-amplitude rotation in degrees (for 'breeze'). */
+  baseDegrees?: number;
+  /** Nominal half-cycle duration in ms (swing from one side to the other). */
+  baseDuration?: number;
+  /** Initial phase delay in ms so leaf clusters ripple organically. */
+  delay?: number;
+  /** Subtle lateral wind sway in px. */
+  driftPx?: number;
+  /** Anchor point (e.g. '0% 0%', '100% 0%', '50% 0%'). */
+  transformOrigin?: string;
 }
 
 /**
- * Gentle, endless back-and-forth rotation (wind in the jungle).
- * Returns an interpolated rotation string usable in a transform.
+ * UI-thread Reanimated wind sway for vector leaves and hanging vines.
+ * Reacts live to `leafWindEnabled` and `leafWindIntensity`, and cancels cleanly
+ * with zero CPU overhead when disabled or when OS reduce-motion is enabled.
  */
-export function useSway(degrees = 2.5, duration = 3600, delay = 0) {
-  const reduce = useReduceMotion();
-  const value = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (reduce || degrees === 0) {
-      value.setValue(0);
-      return;
-    }
-    const ease = Easing.inOut(Easing.sin);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(value, { toValue: 1, duration, easing: ease, useNativeDriver: true, delay }),
-        Animated.timing(value, { toValue: -1, duration: duration * 2, easing: ease, useNativeDriver: true }),
-        Animated.timing(value, { toValue: 0, duration, easing: ease, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reduce, degrees, duration, delay, value]);
-
-  return value.interpolate({
-    inputRange: [-1, 1],
-    outputRange: [`-${degrees}deg`, `${degrees}deg`],
-  });
-}
-
-/**
- * Sway hook that adapts in real-time to the user's wind animation settings.
- * Parameters:
- *  - baseDegrees: nominal sway amplitude
- *  - baseDuration: nominal sway cycle time
- *  - delay: phase offset for natural wave propagation
- */
-export function useLeafWindSway(baseDegrees = 2.6, baseDuration = 3600, delay = 0) {
+export function useLeafWindStyle({
+  baseDegrees = 5.0,
+  baseDuration = 1950,
+  delay = 0,
+  driftPx = 3.5,
+  transformOrigin = '50% 50%',
+}: LeafWindOptions = {}) {
+  const reducedMotion = useReducedMotion();
   const enabled = useThemeStore((s) => s.leafWindEnabled);
   const intensity = useThemeStore((s) => s.leafWindIntensity);
 
-  let factor = 1.0;
-  let durFactor = 1.0;
+  const profile = WIND_PROFILE[intensity] ?? WIND_PROFILE.breeze;
+  const active = enabled && !reducedMotion && baseDegrees > 0;
 
-  if (!enabled) {
-    factor = 0;
-  } else if (intensity === 'gentle') {
-    factor = 0.55; // gentle, subtle sway
-    durFactor = 1.35; // slower, calmer wind
-  } else if (intensity === 'breeze') {
-    factor = 1.0; // natural balanced breeze
-    durFactor = 1.0;
-  } else if (intensity === 'strong') {
-    factor = 1.85; // lively gust of wind
-    durFactor = 0.72; // faster oscillation
-  }
+  const targetDeg = active ? baseDegrees * profile.ampScale : 0;
+  const targetDrift = active ? driftPx * profile.driftScale : 0;
+  const halfCycleMs = Math.max(450, Math.round(baseDuration * profile.durScale));
 
-  const effectiveDegrees = baseDegrees * factor;
-  const effectiveDuration = Math.round(baseDuration * durFactor);
+  const progress = useSharedValue(0);
+  const ampDegSV = useSharedValue(targetDeg);
+  const driftSV = useSharedValue(targetDrift);
 
-  return useSway(effectiveDegrees, effectiveDuration, delay);
+  useEffect(() => {
+    cancelAnimation(progress);
+
+    if (!active) {
+      ampDegSV.value = withTiming(0, { duration: 300 });
+      driftSV.value = withTiming(0, { duration: 300 });
+      progress.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) });
+      return;
+    }
+
+    ampDegSV.value = withTiming(targetDeg, { duration: 320 });
+    driftSV.value = withTiming(targetDrift, { duration: 320 });
+
+    const ease = Easing.inOut(Easing.sin);
+    // Start cleanly from current position -> +1 -> -1 -> +1 endlessly on the UI worklet thread
+    progress.value = withDelay(
+      delay,
+      withSequence(
+        withTiming(1, { duration: Math.round(halfCycleMs * 0.5), easing: ease }),
+        withRepeat(withTiming(-1, { duration: halfCycleMs, easing: ease }), -1, true)
+      )
+    );
+
+    return () => {
+      cancelAnimation(progress);
+    };
+  }, [active, targetDeg, targetDrift, halfCycleMs, delay, progress, ampDegSV, driftSV]);
+
+  return useAnimatedStyle(() => {
+    'worklet';
+    const angle = progress.value * ampDegSV.value;
+    const tx = progress.value * driftSV.value;
+    const ty = Math.abs(progress.value) * (driftSV.value * 0.25);
+
+    return {
+      transformOrigin,
+      transform: [
+        { translateX: tx },
+        { translateY: ty },
+        { rotate: `${angle}deg` },
+      ],
+    };
+  }, [transformOrigin]);
 }

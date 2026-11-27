@@ -161,8 +161,8 @@ export default function ProfileScreen() {
     const res = await checkForGithubUpdate();
     setIsCheckingUpdate(false);
 
-    if (res.success && res.release) {
-      setLatestRelease(res.release);
+    if (res.success) {
+      setLatestRelease(res.release ?? null);
       setHasUpdateAvailable(res.updateAvailable);
       if (!silent) {
         setUpdateModalVisible(true);

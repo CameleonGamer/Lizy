@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Animated, LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { LeafCluster } from './LeafCluster';
 import { Vine } from './Vine';
 import { LeafSpec } from './Leaf';
-import { useLeafWindSway } from './useSway';
+import { useLeafWindStyle } from './useSway';
 
 const CORNER_TL: LeafSpec[] = [
   { variant: 'monstera', x: 40, y: 46, rotate: -60, size: 54, tone: 1 },
@@ -41,10 +42,34 @@ export const CardFoliage: React.FC<CardFoliageProps> = ({ variant, back = false 
   const vineColor = useThemeStore((s) => s.vineColor);
   const [width, setWidth] = useState(0);
 
-  const swayTL = useLeafWindSway(1.8, 3600, 200);
-  const swayBR = useLeafWindSway(1.6, 3900, 600);
-  const swayTR = useLeafWindSway(1.5, 3300, 400);
-  const swayVine = useLeafWindSway(1.2, 3400, 100);
+  const windTL = useLeafWindStyle({
+    baseDegrees: 4.8,
+    baseDuration: 1950,
+    delay: 150,
+    driftPx: 2.5,
+    transformOrigin: '46% 51%',
+  });
+  const windBR = useLeafWindStyle({
+    baseDegrees: 4.5,
+    baseDuration: 2100,
+    delay: 500,
+    driftPx: 2.5,
+    transformOrigin: '53% 50%',
+  });
+  const windTR = useLeafWindStyle({
+    baseDegrees: 4.2,
+    baseDuration: 1800,
+    delay: 300,
+    driftPx: 2.0,
+    transformOrigin: '48% 68%',
+  });
+  const windVine = useLeafWindStyle({
+    baseDegrees: 3.2,
+    baseDuration: 2200,
+    delay: 100,
+    driftPx: 2.0,
+    transformOrigin: '50% 0%',
+  });
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width));
 
@@ -55,13 +80,8 @@ export const CardFoliage: React.FC<CardFoliageProps> = ({ variant, back = false 
         <Animated.View
           style={[
             styles.abs,
-            {
-              top: -34,
-              left: -30,
-              opacity: 0.95,
-              transformOrigin: 'top left',
-              transform: [{ rotate: swayTL }],
-            },
+            { top: -34, left: -30, width: 90, height: 90, opacity: 0.95 },
+            windTL,
           ]}
         >
           <LeafCluster width={90} height={90} leaves={CORNER_TL} color={leafColor} />
@@ -70,13 +90,8 @@ export const CardFoliage: React.FC<CardFoliageProps> = ({ variant, back = false 
           <Animated.View
             style={[
               styles.abs,
-              {
-                bottom: -30,
-                right: -26,
-                opacity: 0.95,
-                transformOrigin: 'bottom right',
-                transform: [{ rotate: swayBR }],
-              },
+              { bottom: -30, right: -26, width: 90, height: 80, opacity: 0.95 },
+              windBR,
             ]}
           >
             <LeafCluster width={90} height={80} leaves={CORNER_BR} color={leafColor} />
@@ -89,7 +104,13 @@ export const CardFoliage: React.FC<CardFoliageProps> = ({ variant, back = false 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill} onLayout={onLayout}>
       {(variant === 'frame' || variant === 'vine') && width > 0 && (
-        <Animated.View style={[styles.abs, { top: -6, left: 18, transformOrigin: 'top', transform: [{ rotate: swayVine }] }]}>
+        <Animated.View
+          style={[
+            styles.abs,
+            { top: -6, left: 18, width: Math.max(0, width - 36), height: 34 },
+            windVine,
+          ]}
+        >
           <Vine kind="draped" width={width - 36} height={34} vineColor={vineColor} leafColor={leafColor} leafEvery={30} leafSize={24} seed={1} />
         </Animated.View>
       )}
@@ -97,12 +118,8 @@ export const CardFoliage: React.FC<CardFoliageProps> = ({ variant, back = false 
         <Animated.View
           style={[
             styles.abs,
-            {
-              top: -22,
-              right: -12,
-              transformOrigin: 'top right',
-              transform: [{ rotate: swayTR }],
-            },
+            { top: -22, right: -12, width: 60, height: 60 },
+            windTR,
           ]}
         >
           <LeafCluster width={60} height={60} leaves={CORNER_TR} color={leafColor} />
